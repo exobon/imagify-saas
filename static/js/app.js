@@ -90,7 +90,8 @@ function initDashboard() {
             'bytedance/doubao-seedream-5.0-lite': 'Doubao Seedream',
             'baidu/ernie-image-turbo': 'Ernie Image Turbo',
             'black-forest-labs/flux-schnell': 'Flux Schnell',
-            'stabilityai/sdxl': 'Stable Diffusion XL'
+            'stabilityai/sdxl': 'Stable Diffusion XL',
+            'wavespeed-ai/image-upscaler': 'Wavespeed AI Image Upscaler'
         };
         return mapping[modelSlug] || modelSlug;
     }
