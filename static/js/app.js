@@ -90,7 +90,8 @@ function initDashboard() {
             'bytedance/doubao-seedream-5.0-lite': 'Doubao Seedream',
             'baidu/ernie-image-turbo': 'Ernie Image Turbo',
             'black-forest-labs/flux-schnell': 'Flux Schnell',
-            'stabilityai/sdxl': 'Stable Diffusion XL'
+            'stabilityai/sdxl': 'Stable Diffusion XL',
+            'wavespeed-ai/image-upscaler': 'DiGi Image Upscaler'
         };
         return mapping[modelSlug] || modelSlug;
     }
@@ -230,7 +231,43 @@ function initDashboard() {
                 }
 
                 // Re-bind click events
-                attachGalleryCardEvents();
+attachGalleryCardEvents();
+     
+     // Theme toggle functionality
+     const themeToggleBtn = document.getElementById('theme-toggle');
+     if (themeToggleBtn) {
+         themeToggleBtn.addEventListener('click', () => {
+             const body = document.body;
+             const isDark = body.classList.toggle('dark-mode');
+             localStorage.setItem('theme', isDark ? 'dark' : 'light');
+             updateThemeIcon();
+         });
+         
+         // Initialize theme from localStorage
+         const savedTheme = localStorage.getItem('theme');
+         if (savedTheme === 'dark') {
+             document.body.classList.add('dark-mode');
+         }
+         
+         function updateThemeIcon() {
+             const isDark = document.body.classList.contains('dark-mode');
+             const icon = themeToggleBtn.querySelector('.svg-icon path');
+             if (isDark) {
+                 // Moon icon
+                 updateIconPath('M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z');
+             } else {
+                 // Sun icon
+                 updateIconPath('M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2');
+             }
+         }
+         
+         function updateIconPath(path) {
+             const icon = themeToggleBtn.querySelector('.svg-icon path');
+             if (icon) {
+                 icon.setAttribute('d', path);
+             }
+         }
+     }
             }
 
         } catch (error) {
