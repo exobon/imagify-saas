@@ -91,7 +91,7 @@ function initDashboard() {
             'baidu/ernie-image-turbo': 'Ernie Image Turbo',
             'black-forest-labs/flux-schnell': 'Flux Schnell',
             'stabilityai/sdxl': 'Stable Diffusion XL',
-            'wavespeed-ai/image-upscaler': 'Wavespeed AI Image Upscaler'
+            'wavespeed-ai/image-upscaler': 'DiGi Image Upscaler'
         };
         return mapping[modelSlug] || modelSlug;
     }
