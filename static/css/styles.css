@@ -2,17 +2,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
-    --font-heading: 'Outfit', sans-serif;
-    --font-body: 'Inter', sans-serif;
-
     /* Theme colors: Dark Mode Premium Space Black */
     --bg-main: #030712;
     --bg-card: rgba(17, 24, 39, 0.45);
     --bg-glass: rgba(11, 17, 30, 0.6);
     
-    --border-color: rgba(255, 255, 255, 0.05);
+    /* Light Mode colors */
+    --bg-main-light: #f8fafc;
+    --bg-card-light: #ffffff;
+    --bg-glass-light: rgba(255, 255, 255, 0.6);
+    
+    --border-color: rgba(255, 255, 255, 0.1);
     --border-glow: rgba(99, 102, 241, 0.15);
-
+    
     --primary: #6366F1; /* Indigo */
     --primary-glow: rgba(99, 102, 241, 0.3);
     --primary-grad: linear-gradient(135deg, #6366F1 0%, #A855F7 100%);
@@ -33,6 +35,87 @@
     --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Dark mode styles */
+body.dark-mode {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+}
+
+/* Light mode override when dark-mode class is NOT applied */
+body:not(.dark-mode) {
+    background-color: var(--bg-main-light);
+    color: var(--text-primary);
+
+body {
+    background-color: var(--bg-main);
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.07) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.05) 0px, transparent 50%);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    line-height: 1.6;
+    overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Dark mode styles */
+body.dark-mode {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+}
+
+/* Light mode override when dark-mode class is NOT applied */
+body:not(.dark-mode) {
+    background-color: var(--bg-main-light);
+    color: var(--text-primary);
+}
+
+/* Decorative Background Glows */
+.bg-glow-1 {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    top: -200px;
+    right: -100px;
+    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(99,102,241,0) 70%);
+    z-index: -1;
+    pointer-events: none;
+}
+
+.bg-glow-2 {
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    bottom: -100px;
+    left: -100px;
+    background: radial-gradient(circle, rgba(236,72,153,0.1) 0%, rgba(236,72,153,0) 70%);
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #FFF;
+}
+
+/* Header & Navigation */
+header {
+    padding: 1.5rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(11, 15, 25, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* The rest of the CSS remains unchanged */
 
 /* Reset */
 * {
