@@ -139,6 +139,21 @@
                     </div>
                 </div>
 
+                <div style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>Wavespeed AI</span>
+                    <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.05);"></div>
+                </div>
+                <div class="model-selector-group" style="margin-bottom: 1.5rem;">
+                    <div class="model-option" data-model="wavespeed/image-upscaler">
+                        <div class="model-meta">
+                            <span class="model-name">Image Upscaler</span>
+                            <span class="model-slug">wavespeed/image-upscaler</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; line-height: 1.3;">Upscale any image up to 4K resolution with AI. Provide a source image URL in the prompt box below.</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                </div>
+
                 <button id="btn-generate" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; justify-content: center; gap: 0.75rem;">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 0.2rem; stroke-width: 2; fill: none; stroke: currentColor;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>Generate Image
                 </button>
@@ -218,6 +233,8 @@
                                         Flux Schnell
                                     {% elif gen.model == 'stabilityai/sdxl' %}
                                         Stable Diffusion XL
+                                    {% elif gen.model == 'wavespeed/image-upscaler' %}
+                                        Image Upscaler
                                     {% else %}
                                         {{ gen.model }}
                                     {% endif %}

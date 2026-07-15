@@ -112,6 +112,12 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="settings-wavespeed-api-key">Wavespeed AI API Key</label>
+                        <input type="password" id="settings-wavespeed-api-key" class="form-input" placeholder="Enter Wavespeed AI API Key (Bearer Token)" value="{{ wavespeed_api_key or '' }}">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">The API Key is securely stored and never exposed directly on the frontend.</span>
+                    </div>
+
+                    <div class="form-group">
                         <label for="settings-base-url">Base URL</label>
                         <input type="url" id="settings-base-url" class="form-input" placeholder="https://zenmux.ai/api/vertex-ai" value="{{ base_url }}" required>
                         <span style="font-size: 0.75rem; color: var(--text-muted);">E.g., <code>https://zenmux.ai/api/vertex-ai</code> for Vertex AI or <code>https://zenmux.ai/api/v1</code> for OpenAI protocol.</span>
@@ -171,6 +177,8 @@
                                     Flux Schnell
                                 {% elif g.model == 'stabilityai/sdxl' %}
                                     Stable Diffusion XL
+                                {% elif g.model == 'wavespeed/image-upscaler' %}
+                                    Image Upscaler
                                 {% else %}
                                     {{ g.model }}
                                 {% endif %}

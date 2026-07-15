@@ -181,6 +181,7 @@ async def admin_page(request: Request, admin_user: dict = Depends(get_admin_user
     base_url = database.get_setting("base_url") or "https://zenmux.ai/api/vertex-ai"
     protocol = database.get_setting("protocol") or "vertex-ai"
     hive_api_key = database.get_setting("hive_api_key")
+    wavespeed_api_key = database.get_setting("wavespeed_api_key")
     
     return templates.TemplateResponse(
         request=request, 
@@ -192,7 +193,8 @@ async def admin_page(request: Request, admin_user: dict = Depends(get_admin_user
             "api_key": api_key,
             "base_url": base_url,
             "protocol": protocol,
-            "hive_api_key": hive_api_key
+            "hive_api_key": hive_api_key,
+            "wavespeed_api_key": wavespeed_api_key
         }
     )
 
@@ -278,6 +280,7 @@ class SettingsUpdateRequest(BaseModel):
     base_url: str
     protocol: str
     hive_api_key: str = ""
+    wavespeed_api_key: str = ""
 
 @app.post("/api/admin/settings")
 async def update_settings(data: SettingsUpdateRequest, admin_user: dict = Depends(get_admin_user_or_redirect)):
@@ -286,6 +289,7 @@ async def update_settings(data: SettingsUpdateRequest, admin_user: dict = Depend
         database.save_setting("base_url", data.base_url)
         database.save_setting("protocol", data.protocol)
         database.save_setting("hive_api_key", data.hive_api_key)
+        database.save_setting("wavespeed_api_key", data.wavespeed_api_key)
         return {"success": True, "message": "Settings updated successfully"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
@@ -345,6 +349,25 @@ HIVE_DEFAULTS = {
     "guidance_scale": 3.5
 }
 
+WAVESPEED_MODELS_CONFIG = {
+    "wavespeed/image-upscaler": {
+        "endpoint": "https://api.wavespeed.ai/api/v3/wavespeed-ai/image-upscaler",
+        "model_name": "Wavespeed Image Upscaler",
+        "supported_parameters": [
+            "image",
+            "target_resolution",
+            "output_format"
+        ]
+    }
+}
+
+WAVESPEED_DEFAULTS = {
+    "target_resolution": "4k",
+    "output_format": "jpeg",
+    "enable_base64_output": False,
+    "enable_sync_mode": False
+}
+
 class GenerationRequest(BaseModel):
     prompt: str
     model: str
@@ -357,6 +380,7 @@ class GenerationRequest(BaseModel):
     num_inference_steps: int | None = None
     output_format: str | None = None
     output_quality: int | None = None
+    image: str | None = None
 
 @app.post("/api/generate")
 async def generate_image(data: GenerationRequest, user: dict = Depends(get_current_user_or_redirect)):
@@ -367,7 +391,9 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
         
     # 2. Get API config
     is_hive = data.model.startswith("hive/")
+    is_wavespeed = data.model.startswith("wavespeed/")
     hive_api_key = None
+    wavespeed_api_key = None
     api_key = None
     base_url = None
     protocol = None
@@ -376,6 +402,10 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
         hive_api_key = database.get_setting("hive_api_key")
         if not hive_api_key:
             return JSONResponse(status_code=500, content={"success": False, "message": "Hive AI API Key is not configured. Please contact the administrator to set the API Key."})
+    elif is_wavespeed:
+        wavespeed_api_key = database.get_setting("wavespeed_api_key")
+        if not wavespeed_api_key:
+            return JSONResponse(status_code=500, content={"success": False, "message": "Wavespeed AI API Key is not configured. Please contact the administrator to set the API Key."})
     else:
         if os.path.exists(".env"):
             with open(".env") as f:
@@ -488,6 +518,72 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                             database.update_generation(gen_id, "completed", img_url)
                             return {"success": True, "image_url": img_url, "credits_left": current_credits - 1}
                             
+                raise Exception(f"Could not parse image data from response: {resp_json}")
+                
+        elif is_wavespeed:
+            if not data.image:
+                raise Exception("The Wavespeed Image Upscaler requires a source image URL. Please provide an image to upscale.")
+                
+            model_cfg = WAVESPEED_MODELS_CONFIG.get(data.model)
+            if not model_cfg:
+                raise Exception(f"Unknown Wavespeed model: {data.model}")
+                
+            endpoint_url = model_cfg["endpoint"]
+            supported = model_cfg["supported_parameters"]
+            
+            # Build payload
+            payload = {
+                "image": data.image,
+                "enable_base64_output": WAVESPEED_DEFAULTS["enable_base64_output"],
+                "enable_sync_mode": WAVESPEED_DEFAULTS["enable_sync_mode"]
+            }
+            
+            if "target_resolution" in supported:
+                payload["target_resolution"] = WAVESPEED_DEFAULTS["target_resolution"]
+                
+            if "output_format" in supported:
+                payload["output_format"] = data.output_format or WAVESPEED_DEFAULTS["output_format"]
+                
+            headers = {
+                "Authorization": f"Bearer {wavespeed_api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(endpoint_url, headers=headers, json=payload)
+                
+                if response.status_code != 200:
+                    raise Exception(f"Wavespeed AI API returned status code {response.status_code}: {response.text}")
+                    
+                resp_json = response.json()
+                
+                # Wavespeed sync mode is off; poll for the resulting image URL
+                img_url = None
+                if "data" in resp_json and isinstance(resp_json["data"], dict):
+                    outputs = resp_json["data"].get("outputs") or resp_json["data"].get("images") or []
+                    if isinstance(outputs, list) and len(outputs) > 0:
+                        first = outputs[0]
+                        img_url = first.get("url") or first.get("image_url") if isinstance(first, dict) else None
+                elif "outputs" in resp_json and isinstance(resp_json["outputs"], list) and len(resp_json["outputs"]) > 0:
+                    first = resp_json["outputs"][0]
+                    img_url = first.get("url") if isinstance(first, dict) else None
+                elif "url" in resp_json:
+                    img_url = resp_json["url"]
+                    
+                if img_url:
+                    img_resp = await client.get(img_url)
+                    if img_resp.status_code == 200:
+                        filename = f"gen_{user['id']}_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}.png"
+                        filepath = os.path.join("static", "generations", filename)
+                        with open(filepath, "wb") as f:
+                            f.write(img_resp.content)
+                        local_url = f"/static/generations/{filename}"
+                        database.update_generation(gen_id, "completed", local_url)
+                        return {"success": True, "image_url": local_url, "credits_left": current_credits - 1}
+                    else:
+                        database.update_generation(gen_id, "completed", img_url)
+                        return {"success": True, "image_url": img_url, "credits_left": current_credits - 1}
+                        
                 raise Exception(f"Could not parse image data from response: {resp_json}")
                 
         elif protocol == "vertex-ai":

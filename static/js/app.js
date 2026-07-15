@@ -84,6 +84,7 @@ function initDashboard() {
             'hive/flux-schnell-enhanced': 'DiGi Vision Pro',
             'hive/flux-schnell-emoji': 'DiGi Emoji Studio',
             'hive/sdxl-enhanced': 'DiGi Canvas Pro',
+            'wavespeed/image-upscaler': 'Image Upscaler',
             'klingai/kling-v2': 'Kling AI V2',
             'tencent/hy-image-v3.0': 'Hunyuan V3.0',
             'z-ai/glm-image': 'GLM Image',
@@ -139,8 +140,10 @@ function initDashboard() {
     // Image generation handler
     btnGenerate.addEventListener('click', async () => {
         const prompt = promptInput.value.trim();
+        const isUpscaler = selectedModel === 'wavespeed/image-upscaler';
+
         if (!prompt) {
-            showToast('Please enter a prompt first!', 'error');
+            showToast(isUpscaler ? 'Please paste a source image URL first!' : 'Please enter a prompt first!', 'error');
             return;
         }
 
@@ -157,15 +160,20 @@ function initDashboard() {
         document.getElementById('generation-showcase').classList.remove('has-image');
 
         try {
+            const payload = {
+                prompt: prompt,
+                model: selectedModel
+            };
+            if (isUpscaler) {
+                payload.image = prompt;
+            }
+
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    prompt: prompt,
-                    model: selectedModel
-                })
+                body: JSON.stringify(payload)
             });
 
             const data = await response.json();
@@ -442,6 +450,7 @@ function initAdmin() {
             e.preventDefault();
             const apiKey = document.getElementById('settings-api-key').value.trim();
             const hiveApiKey = document.getElementById('settings-hive-api-key').value.trim();
+            const wavespeedApiKey = document.getElementById('settings-wavespeed-api-key').value.trim();
             const baseUrl = document.getElementById('settings-base-url').value.trim();
             const protocol = document.getElementById('settings-protocol').value;
 
@@ -453,7 +462,8 @@ function initAdmin() {
                         api_key: apiKey,
                         base_url: baseUrl,
                         protocol: protocol,
-                        hive_api_key: hiveApiKey
+                        hive_api_key: hiveApiKey,
+                        wavespeed_api_key: wavespeedApiKey
                     })
                 });
 
