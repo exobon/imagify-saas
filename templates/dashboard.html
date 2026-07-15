@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creator Workshop - StockGen</title>
+    <meta name="description" content="Generate images using Kling, Hunyuan, GLM, Doubao and Ernie Turbo. View your gallery history and manage credits.">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="bg-glow-1"></div>
+    <div class="bg-glow-2"></div>
+
+    <header>
+        <div class="navbar">
+            <a href="/" class="logo" id="dashboard-logo">
+                <img src="/static/images/logo.webp" alt="StockGen Logo" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
+                <span>Stock</span>Gen
+            </a>
+            
+            <div class="nav-buttons">
+                <div class="credit-pill" id="dashboard-credit-display">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 0.4rem; stroke-width: 2; fill: none; stroke: currentColor; color: #F59E0B; width: 1.1em; height: 1.1em;"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v12M8 9h8M8 15h8"></path></svg><span id="credit-count">{{ user.credits }}</span> Credits
+                </div>
+                <a href="#" id="btn-buy-credits" class="btn btn-secondary btn-sm" style="background: rgba(37, 211, 102, 0.15); color: #25D366; border: 1px solid rgba(37, 211, 102, 0.3);">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="fill: currentColor; stroke: none; width: 1.1em; height: 1.1em; margin-right: 0.2rem; vertical-align: middle;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.454 5.709 1.455h.008c6.56 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Buy Credits
+                </a>
+                {% if user.is_admin %}
+                    <a href="/admin" class="btn btn-secondary btn-sm" id="btn-admin-panel">Admin Panel</a>
+                {% endif %}
+                <a href="/logout" class="btn btn-secondary btn-sm" id="btn-logout">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <main style="padding-top: 1rem;">
+        <div class="dashboard-layout">
+            <!-- Sidebar Generator -->
+            <div class="generator-card" id="generator-sidebar">
+                <div class="user-badge">
+                    <div class="user-info">
+                        <div class="username">{{ user.username }}</div>
+                        <div class="role">{% if user.is_admin %}Administrator{% else %}Creator{% endif %}</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 1rem; font-size: 1.2rem; color: var(--text-secondary);">1. Write Prompt</h3>
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <textarea id="prompt-input" class="form-input" rows="4" style="resize: none;" placeholder="Describe what you want to create in vivid detail..."></textarea>
+                </div>
+
+                <h3 style="margin-bottom: 1rem; font-size: 1.2rem; color: var(--text-secondary);">2. Select AI Model</h3>
+                
+                <div style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>ZenMux AI</span>
+                    <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.05);"></div>
+                </div>
+                <div class="model-selector-group" style="margin-bottom: 1.5rem;">
+                    <div class="model-option active" data-model="klingai/kling-v2">
+                        <div class="model-meta">
+                            <span class="model-name">Kling AI V2</span>
+                            <span class="model-slug">klingai/kling-v2</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                    <div class="model-option" data-model="tencent/hy-image-v3.0">
+                        <div class="model-meta">
+                            <span class="model-name">Hunyuan V3.0</span>
+                            <span class="model-slug">tencent/hy-image-v3.0</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                    <div class="model-option" data-model="z-ai/glm-image">
+                        <div class="model-meta">
+                            <span class="model-name">GLM Image</span>
+                            <span class="model-slug">z-ai/glm-image</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                    <div class="model-option" data-model="bytedance/doubao-seedream-5.0-lite">
+                        <div class="model-meta">
+                            <span class="model-name">Doubao Seedream</span>
+                            <span class="model-slug">bytedance/doubao-seedream-5.0-lite</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                    <div class="model-option" data-model="baidu/ernie-image-turbo">
+                        <div class="model-meta">
+                            <span class="model-name">Ernie Image Turbo</span>
+                            <span class="model-slug">baidu/ernie-image-turbo</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                    <div class="model-option" data-model="black-forest-labs/flux-schnell">
+                        <div class="model-meta">
+                            <span class="model-name">Flux Schnell</span>
+                            <span class="model-slug">black-forest-labs/flux-schnell</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                    <div class="model-option" data-model="stabilityai/sdxl">
+                        <div class="model-meta">
+                            <span class="model-name">Stable Diffusion XL</span>
+                            <span class="model-slug">stabilityai/sdxl</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                </div>
+
+
+                <div style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>DiGi AI</span>
+                    <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.05);"></div>
+                </div>
+                <div class="model-selector-group" style="margin-bottom: 1.5rem;">
+                    <div class="model-option" data-model="hive/flux-schnell-enhanced">
+                        <div class="model-meta">
+                            <span class="model-name">DiGi Vision Pro</span>
+                            <span class="model-slug">digi/vision-pro</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; line-height: 1.3;">Ultra-fast photorealistic image generation with exceptional detail, vibrant colors, cinematic lighting, and professional-quality results.</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                    <div class="model-option" data-model="hive/flux-schnell-emoji">
+                        <div class="model-meta">
+                            <span class="model-name">DiGi Emoji Studio</span>
+                            <span class="model-slug">digi/emoji-studio</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; line-height: 1.3;">Generate expressive emojis, stickers, avatars, cartoon icons, mascots, and social media graphics with lightning-fast AI generation.</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                    <div class="model-option" data-model="hive/sdxl-enhanced">
+                        <div class="model-meta">
+                            <span class="model-name">DiGi Canvas Pro</span>
+                            <span class="model-slug">digi/canvas-pro</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; line-height: 1.3;">Premium AI image generation for photorealistic artwork, cinematic scenes, concept art, marketing creatives, and highly detailed visuals.</span>
+                        </div>
+                        <div class="radio-dot"></div>
+                    </div>
+                </div>
+
+                <button id="btn-generate" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; justify-content: center; gap: 0.75rem;">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 0.2rem; stroke-width: 2; fill: none; stroke: currentColor;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>Generate Image
+                </button>
+            </div>
+
+            <!-- Workspace: Showcase and Gallery -->
+            <div class="workspace-container">
+                <div class="output-showcase" id="generation-showcase">
+                    <div class="placeholder-content" id="showcase-placeholder">
+                        <div class="placeholder-icon">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 3.5rem; height: 3.5rem; stroke-width: 1.5; color: rgba(255,255,255,0.25);"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        </div>
+                        <h3>Your Canvas Awaits</h3>
+                        <p>Write a prompt, select an AI model on the left, and click generate to create something magic.</p>
+                    </div>
+                    <div class="spinner" id="showcase-spinner" style="display: none;"></div>
+                    <p id="showcase-loading-text" style="display: none; color: var(--text-secondary); font-weight: 500;">Generating your masterpiece...</p>
+                    <img id="showcase-image" class="output-image" src="" alt="AI Generation Output" style="display: none;">
+                    
+                    <div id="showcase-meta" style="display: none; width: 100%; padding: 1.5rem; background: rgba(0,0,0,0.5); border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; position: absolute; bottom: 0; left: 0;">
+                        <div style="max-width: 70%;">
+                            <p id="showcase-meta-prompt" style="font-weight: 500; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #FFF;"></p>
+                            <p id="showcase-meta-model" style="font-size: 0.8rem; color: var(--text-secondary);"></p>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button id="btn-copy-prompt" class="btn btn-secondary btn-sm">Copy Prompt</button>
+                            <a id="btn-download" href="" download class="btn btn-primary btn-sm">Download</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gallery-section">
+                    <div class="section-header">
+                        <h2>Your Gallery</h2>
+                        <span style="color: var(--text-muted); font-size: 0.9rem;" id="gallery-count-label">{{ generations|length }} creations</span>
+                    </div>
+
+                    {% if generations|length == 0 %}
+                    <div id="gallery-empty" style="text-align: center; padding: 4rem 2rem; background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border-color); color: var(--text-secondary);">
+                        <p>No previous generations found. Start generating now!</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="gallery-grid" id="gallery-grid">
+                        {% for gen in generations %}
+                        <div class="gallery-card" data-id="{{ gen.id }}" data-prompt="{{ gen.prompt }}" data-model="{{ gen.model }}" data-url="{{ gen.image_url }}" data-status="{{ gen.status }}" data-error="{{ gen.error_message }}">
+                            <div class="gallery-img-wrapper">
+                                {% if gen.status == 'completed' %}
+                                <img src="{{ gen.image_url }}" class="gallery-img" alt="Gallery image">
+                                {% elif gen.status == 'failed' %}
+                                <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #EF4444;"><svg class="svg-icon" viewBox="0 0 24 24" style="width: 2rem; height: 2rem; stroke: currentColor; fill: none; stroke-width: 2;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
+                                {% else %}
+                                <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: var(--primary);"><div class="spinner" style="width: 30px; height: 30px; border-width: 2px; margin-bottom:0;"></div></div>
+                                {% endif %}
+                            </div>
+                            <span class="status-badge {{ gen.status }}">{{ gen.status }}</span>
+                            <div class="gallery-info">
+                                <div class="gallery-prompt">{{ gen.prompt }}</div>
+                                <div class="gallery-model">
+                                    {% if gen.model == 'hive/flux-schnell-enhanced' %}
+                                        DiGi Vision Pro
+                                    {% elif gen.model == 'hive/flux-schnell-emoji' %}
+                                        DiGi Emoji Studio
+                                    {% elif gen.model == 'hive/sdxl-enhanced' %}
+                                        DiGi Canvas Pro
+                                    {% elif gen.model == 'klingai/kling-v2' %}
+                                        Kling AI V2
+                                    {% elif gen.model == 'tencent/hy-image-v3.0' %}
+                                        Hunyuan V3.0
+                                    {% elif gen.model == 'z-ai/glm-image' %}
+                                        GLM Image
+                                    {% elif gen.model == 'bytedance/doubao-seedream-5.0-lite' %}
+                                        Doubao Seedream
+                                    {% elif gen.model == 'baidu/ernie-image-turbo' %}
+                                        Ernie Image Turbo
+                                    {% elif gen.model == 'black-forest-labs/flux-schnell' %}
+                                        Flux Schnell
+                                    {% elif gen.model == 'stabilityai/sdxl' %}
+                                        Stable Diffusion XL
+                                    {% else %}
+                                        {{ gen.model }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Buy Credits Modal -->
+    <div id="buy-credits-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="modal-close" id="buy-credits-close">&times;</button>
+            <h3>Buy Credits</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Choose a credit package. You will be redirected to WhatsApp to complete your purchase (Minimum buy: $5).</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <!-- $5 Plan -->
+                <div class="pricing-card-mini" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.25s ease;">
+                    <div style="font-weight: 700; color: #FFF; font-size: 1.1rem; margin-bottom: 0.25rem;">Starter</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; color: var(--primary); margin: 0.5rem 0;">200 <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary);">Cr</span></div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #FFF; margin-bottom: 1rem;">$5</div>
+                    <a href="https://wa.me/919193987739?text=Hello%2C%20I%20want%20to%20buy%20the%20%245%20Plan%20%28200%20Credits%29%20for%20StockGen.%20My%20username%20is%3A%20{{ user.username }}" target="_blank" class="btn btn-primary btn-sm" style="background: #25D366; border: none; font-size: 0.8rem; padding: 0.5rem; justify-content: center; box-shadow: none;">Buy Now</a>
+                </div>
+
+                <!-- $10 Plan -->
+                <div class="pricing-card-mini" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.25s ease; border-color: var(--primary);">
+                    <div style="font-weight: 700; color: #FFF; font-size: 1.1rem; margin-bottom: 0.25rem;">Popular</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; color: var(--primary); margin: 0.5rem 0;">400 <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary);">Cr</span></div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #FFF; margin-bottom: 1rem;">$10</div>
+                    <a href="https://wa.me/919193987739?text=Hello%2C%20I%20want%20to%20buy%20the%20%2410%20Plan%20%28400%20Credits%29%20for%20StockGen.%20My%20username%20is%3A%20{{ user.username }}" target="_blank" class="btn btn-primary btn-sm" style="background: #25D366; border: none; font-size: 0.8rem; padding: 0.5rem; justify-content: center; box-shadow: none;">Buy Now</a>
+                </div>
+
+                <!-- $20 Plan -->
+                <div class="pricing-card-mini" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.25s ease;">
+                    <div style="font-weight: 700; color: #FFF; font-size: 1.1rem; margin-bottom: 0.25rem;">Pro</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; color: var(--primary); margin: 0.5rem 0;">800 <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary);">Cr</span></div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #FFF; margin-bottom: 1rem;">$20</div>
+                    <a href="https://wa.me/919193987739?text=Hello%2C%20I%20want%20to%20buy%20the%20%2420%20Plan%20%28800%20Credits%29%20for%20StockGen.%20My%20username%20is%3A%20{{ user.username }}" target="_blank" class="btn btn-primary btn-sm" style="background: #25D366; border: none; font-size: 0.8rem; padding: 0.5rem; justify-content: center; box-shadow: none;">Buy Now</a>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 0.5rem; background: rgba(37, 211, 102, 0.05); padding: 1rem; border-radius: 12px; border: 1px solid rgba(37, 211, 102, 0.2); font-size: 0.85rem; color: #81E6D9;">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke-width: 2; flex-shrink: 0; width: 1.2rem; height: 1.2rem;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span>Need a custom volume or support? Message us on WhatsApp: <strong>+919193987739</strong>. We reply instantly!</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <footer>
+        <p>&copy; 2026 StockGen. Built with <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; fill: #EF4444; stroke: none; margin: 0 2px; vertical-align: middle;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg> for next-gen creation.</p>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

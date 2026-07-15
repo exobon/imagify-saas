@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - StockGen</title>
+    <meta name="description" content="Log in to your StockGen account to access your image workshop and generate premium AI art.">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body style="justify-content: center; align-items: center; padding: 2rem;">
+    <div class="bg-glow-1"></div>
+    <div class="bg-glow-2"></div>
+
+    <div class="auth-container">
+        <a href="/" class="logo" style="justify-content: center; margin-bottom: 2rem;" id="login-logo">
+            <img src="/static/images/logo.webp" alt="StockGen Logo" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
+            <span>Stock</span>Gen
+        </a>
+
+        <div class="glass-card" id="login-card">
+            <div class="auth-header">
+                <h2>Welcome Back</h2>
+                <p>Enter your credentials to access your workshop</p>
+            </div>
+
+            {% if error %}
+            <div class="alert-error" id="login-error-alert">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 1.1em; height: 1.1em; stroke: currentColor; fill: none; stroke-width: 2; margin-right: 0.4rem; vertical-align: middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> {{ error }}
+            </div>
+            {% endif %}
+
+            <form action="/login" method="POST" id="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" name="username" id="username" class="form-input" placeholder="Enter your username" required autocomplete="username">
+                </div>
+                <div class="form-group" style="margin-bottom: 2rem;">
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.9rem;" id="btn-login-submit">Sign In</button>
+            </form>
+
+            <div class="auth-footer">
+                Don't have an account? <a href="/register" id="link-goto-register">Create Account</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

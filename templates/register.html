@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account - StockGen</title>
+    <meta name="description" content="Sign up for StockGen to receive 1 free credit and begin generating stunning AI-generated art.">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body style="justify-content: center; align-items: center; padding: 2rem;">
+    <div class="bg-glow-1"></div>
+    <div class="bg-glow-2"></div>
+
+    <div class="auth-container">
+        <a href="/" class="logo" style="justify-content: center; margin-bottom: 2rem;" id="register-logo">
+            <img src="/static/images/logo.webp" alt="StockGen Logo" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
+            <span>Stock</span>Gen
+        </a>
+
+        <div class="glass-card" id="register-card">
+            <div class="auth-header">
+                <h2>Get Started</h2>
+                <p>Create an account and receive 1 free credit</p>
+            </div>
+
+            {% if error %}
+            <div class="alert-error" id="register-error-alert">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 1.1em; height: 1.1em; stroke: currentColor; fill: none; stroke-width: 2; margin-right: 0.4rem; vertical-align: middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> {{ error }}
+            </div>
+            {% endif %}
+
+            <form action="/register" method="POST" id="register-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" name="username" id="username" class="form-input" placeholder="johndoe" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" name="email" id="email" class="form-input" placeholder="john@example.com" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" class="form-input" placeholder="At least 6 characters" required autocomplete="new-password">
+                </div>
+                <div class="form-group" style="margin-bottom: 2rem;">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" name="confirm_password" id="confirm_password" class="form-input" placeholder="Repeat your password" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.9rem;" id="btn-register-submit">Create Account</button>
+            </form>
+
+            <div class="auth-footer">
+                Already have an account? <a href="/login" id="link-goto-login">Sign In</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

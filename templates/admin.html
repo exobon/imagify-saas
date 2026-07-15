@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - StockGen</title>
+    <meta name="description" content="Manage users, credits, system configurations, and view platform generations.">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="bg-glow-1"></div>
+    <div class="bg-glow-2"></div>
+
+    <header>
+        <div class="navbar">
+            <a href="/" class="logo" id="admin-logo">
+                 <img src="/static/images/logo.webp" alt="StockGen Logo" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
+                 <span>Stock</span>Gen Admin
+            </a>
+            
+            <div class="nav-buttons">
+                <a href="/dashboard" class="btn btn-secondary btn-sm" id="btn-admin-workshop">Creator Workshop</a>
+                <a href="/logout" class="btn btn-secondary btn-sm" id="btn-admin-logout">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div style="margin-bottom: 2rem;">
+            <h1>System Administration</h1>
+            <p style="color: var(--text-secondary);">Manage users, configure API endpoints, and view generation metrics.</p>
+        </div>
+
+        <div class="tabs-nav" id="admin-tabs">
+            <button class="tab-btn active" data-tab="tab-users">Users Management</button>
+            <button class="tab-btn" data-tab="tab-settings">API & Settings</button>
+            <button class="tab-btn" data-tab="tab-generations">All Generations</button>
+        </div>
+
+        <!-- TAB: Users Management -->
+        <div class="tab-content active" id="tab-users">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                <button class="btn btn-primary btn-sm" id="btn-create-user-modal">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 0.4rem; stroke-width: 2; fill: none; stroke: currentColor; width: 1em; height: 1em;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>Create User
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Credits</th>
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        {% for u in users %}
+                        <tr data-user-id="{{ u.id }}">
+                            <td>{{ u.id }}</td>
+                            <td style="font-weight: 600;">{{ u.username }}</td>
+                            <td>{{ u.email }}</td>
+                            <td style="font-weight: 700; color: #FFF;">
+                                <span class="user-credits">{{ u.credits }}</span>
+                            </td>
+                            <td>
+                                <span class="badge" style="margin-bottom: 0; background: {% if u.is_admin %}rgba(168, 85, 247, 0.15){% else %}rgba(99, 102, 241, 0.1){% endif %}; color: {% if u.is_admin %}#D8B4FE{% else %}#A5B4FC{% endif %}; border: 1px solid rgba(255,255,255,0.05);">
+                                    {% if u.is_admin %}ADMIN{% else %}USER{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button class="btn btn-secondary btn-sm edit-credits-btn" data-user-id="{{ u.id }}" data-username="{{ u.username }}" data-credits="{{ u.credits }}">
+                                        Edit Credits
+                                    </button>
+                                    {% if u.id != user.id %}
+                                    <button class="btn btn-secondary btn-sm toggle-role-btn" data-user-id="{{ u.id }}" data-admin-status="{{ u.is_admin }}">
+                                        Make {% if u.is_admin %}User{% else %}Admin{% endif %}
+                                    </button>
+                                    <button class="btn btn-danger btn-sm delete-user-btn" data-user-id="{{ u.id }}" data-username="{{ u.username }}">
+                                        Delete
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB: Settings Config -->
+        <div class="tab-content" id="tab-settings">
+            <div class="settings-form">
+                <h3 style="font-size: 1.4rem; margin-bottom: 0.5rem;">Zenmux Endpoint Integration</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">Configure the active credentials and base parameters for outbound image generation requests.</p>
+                
+                <form id="settings-config-form">
+                    <div class="form-group">
+                        <label for="settings-api-key">Zenmux API Key</label>
+                        <input type="password" id="settings-api-key" class="form-input" placeholder="Enter Zenmux API Key (Bearer Token)" value="{{ api_key or '' }}">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">The API Key is securely stored and never exposed directly on the frontend.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="settings-hive-api-key">DiGi AI API Key</label>
+                        <input type="password" id="settings-hive-api-key" class="form-input" placeholder="Enter DiGi AI API Key (Bearer Token)" value="{{ hive_api_key or '' }}">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">The API Key is securely stored and never exposed directly on the frontend.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="settings-base-url">Base URL</label>
+                        <input type="url" id="settings-base-url" class="form-input" placeholder="https://zenmux.ai/api/vertex-ai" value="{{ base_url }}" required>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">E.g., <code>https://zenmux.ai/api/vertex-ai</code> for Vertex AI or <code>https://zenmux.ai/api/v1</code> for OpenAI protocol.</span>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 2rem;">
+                        <label for="settings-protocol">API Protocol Format</label>
+                        <select id="settings-protocol" class="form-input" style="background-color: #111827; color: #FFF;">
+                            <option value="vertex-ai" {% if protocol == 'vertex-ai' %}selected{% endif %}>Vertex AI Protocol (predict format)</option>
+                            <option value="openai" {% if protocol == 'openai' %}selected{% endif %}>OpenAI Protocol (images/generations format)</option>
+                        </select>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Determines payload schema and endpoint URLs sent to Zenmux.</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="btn-save-settings">Save Settings</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB: All Generations -->
+        <div class="tab-content" id="tab-generations">
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>User</th>
+                            <th>Model</th>
+                            <th>Prompt</th>
+                            <th>Status</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for g in generations %}
+                        <tr>
+                            <td>{{ g.id }}</td>
+                            <td style="font-weight: 600;">{{ g.username }}</td>
+                            <td style="font-size: 0.8rem; font-family: monospace;">
+                                {% if g.model == 'hive/flux-schnell-enhanced' %}
+                                    DiGi Vision Pro
+                                {% elif g.model == 'hive/flux-schnell-emoji' %}
+                                    DiGi Emoji Studio
+                                {% elif g.model == 'hive/sdxl-enhanced' %}
+                                    DiGi Canvas Pro
+                                {% elif g.model == 'klingai/kling-v2' %}
+                                    Kling AI V2
+                                {% elif g.model == 'tencent/hy-image-v3.0' %}
+                                    Hunyuan V3.0
+                                {% elif g.model == 'z-ai/glm-image' %}
+                                    GLM Image
+                                {% elif g.model == 'bytedance/doubao-seedream-5.0-lite' %}
+                                    Doubao Seedream
+                                {% elif g.model == 'baidu/ernie-image-turbo' %}
+                                    Ernie Image Turbo
+                                {% elif g.model == 'black-forest-labs/flux-schnell' %}
+                                    Flux Schnell
+                                {% elif g.model == 'stabilityai/sdxl' %}
+                                    Stable Diffusion XL
+                                {% else %}
+                                    {{ g.model }}
+                                {% endif %}
+                            </td>
+                            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {{ g.prompt }}
+                            </td>
+                            <td>
+                                <span class="status-badge {{ g.status }}">{{ g.status }}</span>
+                                {% if g.status == 'failed' and g.error_message %}
+                                <div style="font-size: 0.75rem; color: #F87171; max-width: 250px; white-space: normal; margin-top: 0.2rem;">
+                                    {{ g.error_message }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td style="font-size: 0.85rem; color: var(--text-secondary);">{{ g.created_at }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Edit Credits -->
+    <div class="modal" id="credits-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="credits-modal-close">&times;</button>
+            <h3>Manage User Credits</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;" id="credits-modal-subtitle">Update credits for user</p>
+            
+            <form id="credits-update-form">
+                <input type="hidden" id="credits-user-id">
+                <div class="form-group" style="margin-bottom: 2rem;">
+                    <label for="credits-amount">Credits Balance</label>
+                    <input type="number" id="credits-amount" class="form-input" min="0" value="0" required>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-credits">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Balance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Create User -->
+    <div class="modal" id="create-user-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="create-user-modal-close">&times;</button>
+            <h3>Create New User</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Register a new user account with custom default credits.</p>
+            
+            <form id="create-user-form">
+                <div class="form-group">
+                    <label for="create-username">Username</label>
+                    <input type="text" id="create-username" class="form-input" placeholder="Enter username" required>
+                </div>
+                <div class="form-group">
+                    <label for="create-email">Email Address</label>
+                    <input type="email" id="create-email" class="form-input" placeholder="Enter email" required>
+                </div>
+                <div class="form-group">
+                    <label for="create-password">Password</label>
+                    <input type="password" id="create-password" class="form-input" placeholder="Enter password" required>
+                </div>
+                <div class="form-group">
+                    <label for="create-credits">Default Credits</label>
+                    <input type="number" id="create-credits" class="form-input" min="0" value="1" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 2rem; flex-direction: row; align-items: center; gap: 0.75rem;">
+                    <input type="checkbox" id="create-is-admin" style="width: 18px; height: 18px; cursor: pointer;">
+                    <label for="create-is-admin" style="cursor: pointer; margin-bottom: 0;">Grant Administrator Role</label>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-create-user">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <footer>
+        <p>&copy; 2026 StockGen. Built with <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; fill: #EF4444; stroke: none; margin: 0 2px; vertical-align: middle;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg> for next-gen creation.</p>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
