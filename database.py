@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 DB_PATH = os.path.join(os.path.dirname(__file__), "stockgen.db")
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -28,6 +28,13 @@ def verify_password(password: str, pwd_hash: str, salt: str) -> bool:
 
 def init_db():
     conn = get_db_connection()
+    try:
+        # WAL allows concurrent readers + single writer (fixes "database is locked")
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        conn.execute("PRAGMA synchronous=NORMAL")
+    except sqlite3.DatabaseError:
+        pass
     cursor = conn.cursor()
     
     # Create Users table
