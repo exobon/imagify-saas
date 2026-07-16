@@ -414,11 +414,10 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
         base_url = database.get_setting("base_url") or "https://zenmux.ai/api/vertex-ai"
         protocol = database.get_setting("protocol") or "vertex-ai"
     
-    # 3. Deduct credit (refund if fails). Upscaler costs 2 credits, others 1.
+    # 3. Check credit cost. Upscaler costs 2 credits, others 1.
     credit_cost = 2 if data.model == "wavespeed-ai/image-upscaler" else 1
     if current_credits < credit_cost:
         return JSONResponse(status_code=400, content={"success": False, "message": f"Insufficient credits. This action requires {credit_cost} credit(s)."})
-    database.update_user_credits(user["id"], current_credits - credit_cost)
     
     # 4. Save initial generation record
     # Image-only models (wavespeed-ai/image-upscaler) have no prompt -> default label
@@ -432,6 +431,8 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
     
     # 5. Call API
     try:
+        # Deduct credit (refund if fails). Upscaler costs 2 credits, others 1.
+        database.update_user_credits(user["id"], current_credits - credit_cost)
         # Highest priority: Wavespeed image upscaler (image-to-image, not text-to-image)
         if data.model == "wavespeed-ai/image-upscaler":
             if not wavespeed_api_key:
