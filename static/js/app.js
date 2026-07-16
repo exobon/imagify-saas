@@ -70,12 +70,41 @@ function initDashboard() {
 
     let selectedModel = 'klingai/kling-v2';
 
+    const isUpscaler = (m) => m === 'wavespeed-ai/image-upscaler';
+
+    // Upscaler-related DOM
+    const promptSection = document.getElementById('prompt-section');
+    const upscalerSection = document.getElementById('upscaler-section');
+    const upscalerFile = document.getElementById('upscaler-file');
+    const upscalerDropzone = document.getElementById('upscaler-dropzone');
+    const upscalerFileLabel = document.getElementById('upscaler-file-label');
+    const upscalerPreviewWrap = document.getElementById('upscaler-preview-wrap');
+    const upscalerPreview = document.getElementById('upscaler-preview');
+    const upscalerRemove = document.getElementById('upscaler-remove');
+
+    let uploadedImageBase64 = null;
+    let upscalerResolution = '2k';
+    let upscalerFormat = 'jpeg';
+
+    function applyModelMode() {
+        if (isUpscaler(selectedModel)) {
+            if (promptSection) promptSection.style.display = 'none';
+            if (upscalerSection) upscalerSection.style.display = 'block';
+            if (btnGenerate) btnGenerate.textContent = 'Upscale Image';
+        } else {
+            if (promptSection) promptSection.style.display = 'block';
+            if (upscalerSection) upscalerSection.style.display = 'none';
+            if (btnGenerate) btnGenerate.textContent = 'Generate Image';
+        }
+    }
+
     // Model options click selection
     modelOptions.forEach(option => {
         option.addEventListener('click', () => {
             modelOptions.forEach(opt => opt.classList.remove('active'));
             option.classList.add('active');
             selectedModel = option.dataset.model;
+            applyModelMode();
         });
     });
 
@@ -149,10 +178,87 @@ function initDashboard() {
     
     attachGalleryCardEvents();
 
+    // Upscaler: file selection + preview
+    if (upscalerFile) {
+        upscalerFile.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                uploadedImageBase64 = ev.target.result; // full data URL
+                upscalerPreview.src = uploadedImageBase64;
+                upscalerPreviewWrap.style.display = 'block';
+                upscalerFileLabel.textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    if (upscalerRemove) {
+        upscalerRemove.addEventListener('click', () => {
+            uploadedImageBase64 = null;
+            upscalerFile.value = '';
+            upscalerPreviewWrap.style.display = 'none';
+            upscalerFileLabel.textContent = 'Drag & drop or click to upload an image';
+        });
+    }
+    // Resolution + format selectors
+    document.querySelectorAll('.upscale-res-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.upscale-res-btn').forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'rgba(255,255,255,0.02)';
+                b.style.color = 'var(--text-secondary)';
+            });
+            btn.classList.add('active');
+            btn.style.background = 'rgba(99,102,241,0.15)';
+            btn.style.color = 'var(--primary)';
+            upscalerResolution = btn.dataset.value;
+        });
+    });
+    document.querySelectorAll('.upscale-fmt-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.upscale-fmt-btn').forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'rgba(255,255,255,0.02)';
+                b.style.color = 'var(--text-secondary)';
+            });
+            btn.classList.add('active');
+            btn.style.background = 'rgba(99,102,241,0.15)';
+            btn.style.color = 'var(--primary)';
+            upscalerFormat = btn.dataset.value;
+        });
+    });
+    // Drag & drop on dropzone
+    if (upscalerDropzone && upscalerFile) {
+        ['dragover', 'dragenter'].forEach(ev => upscalerDropzone.addEventListener(ev, (e) => {
+            e.preventDefault();
+            upscalerDropzone.style.borderColor = 'var(--primary)';
+        }));
+        ['dragleave', 'drop'].forEach(ev => upscalerDropzone.addEventListener(ev, (e) => {
+            e.preventDefault();
+            upscalerDropzone.style.borderColor = 'var(--border-color)';
+        }));
+        upscalerDropzone.addEventListener('drop', (e) => {
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                upscalerFile.files = e.dataTransfer.files;
+                upscalerFile.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+
     // Image generation handler
     btnGenerate.addEventListener('click', async () => {
+        // Upscaler path: require an uploaded image, no prompt needed
+        if (isUpscaler(selectedModel)) {
+            if (!uploadedImageBase64) {
+                showToast('Please upload an image to upscale!', 'error');
+                return;
+            }
+        }
+
         const prompt = promptInput.value.trim();
-        if (!prompt) {
+        if (!isUpscaler(selectedModel) && !prompt) {
             showToast('Please enter a prompt first!', 'error');
             return;
         }
@@ -175,10 +281,17 @@ function initDashboard() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    prompt: prompt,
-                    model: selectedModel
-                })
+                body: JSON.stringify(isUpscaler(selectedModel)
+                    ? {
+                        model: selectedModel,
+                        image: uploadedImageBase64,
+                        target_resolution: upscalerResolution,
+                        output_format: upscalerFormat
+                      }
+                    : {
+                        prompt: prompt,
+                        model: selectedModel
+                      })
             });
 
             const data = await response.json();
@@ -216,7 +329,9 @@ function initDashboard() {
                 const newCard = document.createElement('div');
                 newCard.className = 'gallery-card';
                 newCard.dataset.id = cardId;
-                newCard.dataset.prompt = prompt;
+                newCard.dataset.prompt = isUpscaler(selectedModel)
+                    ? `Upscaled image (${upscalerResolution}, ${upscalerFormat.toUpperCase()})`
+                    : prompt;
                 newCard.dataset.model = selectedModel;
                 newCard.dataset.url = data.image_url;
                 newCard.dataset.status = 'completed';
@@ -228,7 +343,7 @@ function initDashboard() {
                     </div>
                     <span class="status-badge completed">completed</span>
                     <div class="gallery-info">
-                        <div class="gallery-prompt">${prompt}</div>
+                        <div class="gallery-prompt">${isUpscaler(selectedModel) ? `Upscaled image (${upscalerResolution}, ${upscalerFormat.toUpperCase()})` : prompt}</div>
                         <div class="gallery-model">${getModelDisplayName(selectedModel)}</div>
                     </div>
                 `;
@@ -493,6 +608,7 @@ function initAdmin() {
             const hiveApiKey = document.getElementById('settings-hive-api-key').value.trim();
             const baseUrl = document.getElementById('settings-base-url').value.trim();
             const protocol = document.getElementById('settings-protocol').value;
+            const wavespeedApiKey = document.getElementById('settings-wavespeed-api-key').value.trim();
 
             try {
                 const res = await fetch('/api/admin/settings', {
@@ -502,7 +618,8 @@ function initAdmin() {
                         api_key: apiKey,
                         base_url: baseUrl,
                         protocol: protocol,
-                        hive_api_key: hiveApiKey
+                        hive_api_key: hiveApiKey,
+                        wavespeed_api_key: wavespeedApiKey
                     })
                 });
 
