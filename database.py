@@ -67,7 +67,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS generations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
-        prompt TEXT NOT NULL,
+        prompt TEXT NOT NULL DEFAULT 'Image Upscaler',
         model TEXT NOT NULL,
         image_url TEXT,
         status TEXT NOT NULL,
@@ -207,6 +207,9 @@ def delete_session(session_id):
     conn.close()
 
 def save_generation(user_id, prompt, model, image_url=None, status="pending", error_message=None):
+    # Image-only models (e.g. wavespeed-ai/image-upscaler) have no prompt -> use a safe default
+    if prompt is None or (isinstance(prompt, str) and prompt.strip() == ""):
+        prompt = "Image Upscaler"
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(

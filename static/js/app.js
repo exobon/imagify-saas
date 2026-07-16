@@ -294,10 +294,17 @@ function initDashboard() {
                       })
             });
 
-            const data = await response.json();
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseErr) {
+                // Server returned non-JSON (e.g. an HTML 500 page)
+                const text = await response.text().catch(() => '');
+                throw new Error(text.slice(0, 200) || 'Server returned an invalid response');
+            }
 
             if (!response.ok || !data.success) {
-                throw new Error(data.message || 'An error occurred during generation');
+                throw new Error((data && data.message) || 'An error occurred during generation');
             }
 
             // 2. Success state
@@ -306,7 +313,9 @@ function initDashboard() {
             // Render to Showcase
             previewImage({
                 url: data.image_url,
-                prompt: prompt,
+                prompt: isUpscaler(selectedModel)
+                    ? `Upscaled image (${upscalerResolution}, ${upscalerFormat.toUpperCase()})`
+                    : prompt,
                 model: selectedModel
             });
 
@@ -315,8 +324,14 @@ function initDashboard() {
                 creditCount.textContent = data.credits_left;
             }
 
-            // Clear prompt input
+            // Clear inputs
             promptInput.value = '';
+            if (isUpscaler(selectedModel) && typeof uploadedImageBase64 !== 'undefined') {
+                uploadedImageBase64 = null;
+                if (upscalerFile) upscalerFile.value = '';
+                if (upscalerPreviewWrap) upscalerPreviewWrap.style.display = 'none';
+                if (upscalerFileLabel) upscalerFileLabel.textContent = 'Drag & drop or click to upload an image';
+            }
 
             // Add item to gallery grid dynamically
             if (galleryGrid) {

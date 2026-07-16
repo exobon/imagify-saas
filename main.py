@@ -63,6 +63,18 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
         return RedirectResponse(url=exc.headers.get("Location"))
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
+# Global handler: return JSON (never an HTML 500 page) for any unhandled error
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exc()
+    # If the client asked for JSON / it's an API call, respond with JSON
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept or request.url.path.startswith("/api/"):
+        return JSONResponse(status_code=500, content={"success": False, "message": f"Server error: {str(exc)}"})
+    # Fallback for page routes: still return JSON to avoid HTML parse errors on the client
+    return JSONResponse(status_code=500, content={"success": False, "message": f"Server error: {str(exc)}"})
+
 # --- Web Routes ---
 
 @app.get("/", response_class=HTMLResponse)
@@ -409,9 +421,11 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
     database.update_user_credits(user["id"], current_credits - credit_cost)
     
     # 4. Save initial generation record
+    # Image-only models (wavespeed-ai/image-upscaler) have no prompt -> default label
+    gen_prompt = data.prompt if data.model != "wavespeed-ai/image-upscaler" else "Image Upscaler"
     gen_id = database.save_generation(
         user_id=user["id"],
-        prompt=data.prompt,
+        prompt=gen_prompt,
         model=data.model,
         status="pending"
     )
