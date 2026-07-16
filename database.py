@@ -108,17 +108,24 @@ def init_db():
         env_key = os.environ.get("ZENMUX_API_KEY", "")
         cursor.execute("INSERT INTO settings (key, value) VALUES (?, ?)", ("zenmux_api_key", env_key))
         conn.commit()
+
+    # Ensure registration_ip column exists in users table
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN registration_ip TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
         
     conn.close()
 
-def create_user(username, email, password, credits=1, is_admin=0):
+def create_user(username, email, password, credits=1, is_admin=0, registration_ip=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     pwd_hash, salt = hash_password(password)
     try:
         cursor.execute(
-            "INSERT INTO users (username, email, password_hash, salt, credits, is_admin) VALUES (?, ?, ?, ?, ?, ?)",
-            (username, email, pwd_hash, salt, credits, is_admin)
+            "INSERT INTO users (username, email, password_hash, salt, credits, is_admin, registration_ip) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (username, email, pwd_hash, salt, credits, is_admin, registration_ip)
         )
         conn.commit()
         user_id = cursor.lastrowid
@@ -127,6 +134,14 @@ def create_user(username, email, password, credits=1, is_admin=0):
     except sqlite3.IntegrityError as e:
         conn.close()
         raise e
+
+def check_ip_exists(ip):
+    if not ip:
+        return False
+    conn = get_db_connection()
+    row = conn.execute("SELECT id FROM users WHERE registration_ip = ? AND is_admin = 0", (ip,)).fetchone()
+    conn.close()
+    return True if row else False
 
 def get_user_by_username(username):
     conn = get_db_connection()
@@ -263,3 +278,10 @@ def save_setting(key, value):
     )
     conn.commit()
     conn.close()
+
+def delete_generation(gen_id):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM generations WHERE id = ?", (gen_id,))
+    conn.commit()
+    conn.close()
+

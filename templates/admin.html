@@ -66,7 +66,7 @@
                                 <span class="user-credits">{{ u.credits }}</span>
                             </td>
                             <td>
-                                <span class="badge" style="margin-bottom: 0; background: {% if u.is_admin %}rgba(168, 85, 247, 0.15){% else %}rgba(99, 102, 241, 0.1){% endif %}; color: {% if u.is_admin %}#D8B4FE{% else %}#A5B4FC{% endif %}; border: 1px solid rgba(255,255,255,0.05);">
+                                <span class="badge" style="margin-bottom: 0; background: {% if u.is_admin %}rgba(168, 85, 247, 0.15){% else %}rgba(217, 119, 6, 0.1){% endif %}; color: {% if u.is_admin %}#D8B4FE{% else %}#F59E0B{% endif %}; border: 1px solid rgba(255,255,255,0.05);">
                                     {% if u.is_admin %}ADMIN{% else %}USER{% endif %}
                                 </span>
                             </td>
@@ -123,13 +123,29 @@
                         <span style="font-size: 0.75rem; color: var(--text-muted);">E.g., <code>https://zenmux.ai/api/vertex-ai</code> for Vertex AI or <code>https://zenmux.ai/api/v1</code> for OpenAI protocol.</span>
                     </div>
 
-                    <div class="form-group" style="margin-bottom: 2rem;">
+                    <div class="form-group">
                         <label for="settings-protocol">API Protocol Format</label>
-                        <select id="settings-protocol" class="form-input" style="background-color: #111827; color: #FFF;">
+                        <select id="settings-protocol" class="form-input" style="background-color: var(--bg-subtle); color: var(--text-primary);">
                             <option value="vertex-ai" {% if protocol == 'vertex-ai' %}selected{% endif %}>Vertex AI Protocol (predict format)</option>
                             <option value="openai" {% if protocol == 'openai' %}selected{% endif %}>OpenAI Protocol (images/generations format)</option>
                         </select>
                         <span style="font-size: 0.75rem; color: var(--text-muted);">Determines payload schema and endpoint URLs sent to Zenmux.</span>
+                    </div>
+
+                    <h4 style="font-size: 1.15rem; margin-top: 2rem; margin-bottom: 1rem; color: var(--text-primary);">Security & Sign-up Controls</h4>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; cursor: pointer; gap: 0.5rem; user-select: none;">
+                            <input type="checkbox" id="settings-ip-lock" style="width: 1.1rem; height: 1.1rem; accent-color: var(--primary);" {% if ip_lock_enabled %}checked{% endif %}>
+                            <span style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary);">Enforce One Account per IP</span>
+                        </label>
+                        <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">If enabled, users cannot register more than one account from the same IP address. (Recommended to prevent free credit abuse).</span>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 2rem;">
+                        <label for="settings-reg-credits">Default Registration Credits</label>
+                        <input type="number" id="settings-reg-credits" class="form-input" min="0" placeholder="1" value="{{ registration_credits or 1 }}" required>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Number of free image credits awarded to newly registered user accounts.</span>
                     </div>
 
                     <button type="submit" class="btn btn-primary" id="btn-save-settings">Save Settings</button>

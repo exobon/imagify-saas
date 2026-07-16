@@ -10,6 +10,7 @@ if os.path.exists(".env"):
 import httpx
 import uuid
 import base64
+import asyncio
 from datetime import datetime
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -140,6 +141,20 @@ async def register(
         )
         
     try:
+        # Get client IP (resolving Nginx proxy headers)
+        client_ip = request.headers.get("x-real-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else None)
+        if client_ip:
+            client_ip = client_ip.split(",")[0].strip()
+            
+        # Check if an account already exists from this IP address if IP Lock is enabled
+        ip_lock = database.get_setting("ip_lock_enabled") == "true"
+        if ip_lock and client_ip and database.check_ip_exists(client_ip):
+            return templates.TemplateResponse(
+                request=request, 
+                name="register.html", 
+                context={"error": "An account has already been registered from this IP address"}
+            )
+
         # Check if username/email already exists
         existing_user = database.get_user_by_username(username)
         if existing_user:
@@ -149,8 +164,9 @@ async def register(
                 context={"error": "Username already taken"}
             )
             
-        # Register user with default 1 credit
-        database.create_user(username, email, password, credits=1)
+        # Register user with default configured credits and record their IP
+        reg_credits = int(database.get_setting("registration_credits") or 1)
+        database.create_user(username, email, password, credits=reg_credits, registration_ip=client_ip)
         
         # Log them in automatically
         user = database.get_user_by_username(username)
@@ -189,11 +205,18 @@ async def admin_page(request: Request, admin_user: dict = Depends(get_admin_user
     generations = database.get_all_generations()
     
     # Load settings
-    api_key = database.get_setting("zenmux_api_key")
+    zenmux_key = database.get_setting("zenmux_api_key")
     base_url = database.get_setting("base_url") or "https://zenmux.ai/api/vertex-ai"
     protocol = database.get_setting("protocol") or "vertex-ai"
-    hive_api_key = database.get_setting("hive_api_key")
-    wavespeed_api_key = database.get_setting("wavespeed_api_key")
+    hive_key = database.get_setting("hive_api_key")
+    wavespeed_key = database.get_setting("wavespeed_api_key")
+    ip_lock_enabled = database.get_setting("ip_lock_enabled") == "true"
+    registration_credits = int(database.get_setting("registration_credits") or 1)
+    
+    # Secure API keys by masking them when rendering the UI
+    api_key_masked = "••••••••••••••••" if zenmux_key else ""
+    hive_api_key_masked = "••••••••••••••••" if hive_key else ""
+    wavespeed_api_key_masked = "••••••••••••••••" if wavespeed_key else ""
     
     return templates.TemplateResponse(
         request=request, 
@@ -202,11 +225,13 @@ async def admin_page(request: Request, admin_user: dict = Depends(get_admin_user
             "user": admin_user, 
             "users": users, 
             "generations": generations,
-            "api_key": api_key,
+            "api_key": api_key_masked,
             "base_url": base_url,
             "protocol": protocol,
-            "hive_api_key": hive_api_key,
-            "wavespeed_api_key": wavespeed_api_key
+            "hive_api_key": hive_api_key_masked,
+            "wavespeed_api_key": wavespeed_api_key_masked,
+            "ip_lock_enabled": ip_lock_enabled,
+            "registration_credits": registration_credits
         }
     )
 
@@ -293,15 +318,28 @@ class SettingsUpdateRequest(BaseModel):
     protocol: str
     hive_api_key: str = ""
     wavespeed_api_key: str = ""
+    ip_lock_enabled: bool = False
+    registration_credits: int = 1
 
 @app.post("/api/admin/settings")
 async def update_settings(data: SettingsUpdateRequest, admin_user: dict = Depends(get_admin_user_or_redirect)):
     try:
-        database.save_setting("zenmux_api_key", data.api_key)
+        # Secure: only save key if it was modified (doesn't contain masking bullet character)
+        if "•" not in data.api_key and data.api_key.strip() != "":
+            database.save_setting("zenmux_api_key", data.api_key.strip())
+            
         database.save_setting("base_url", data.base_url)
         database.save_setting("protocol", data.protocol)
-        database.save_setting("hive_api_key", data.hive_api_key)
-        database.save_setting("wavespeed_api_key", data.wavespeed_api_key)
+        
+        if "•" not in data.hive_api_key and data.hive_api_key.strip() != "":
+            database.save_setting("hive_api_key", data.hive_api_key.strip())
+            
+        if "•" not in data.wavespeed_api_key and data.wavespeed_api_key.strip() != "":
+            database.save_setting("wavespeed_api_key", data.wavespeed_api_key.strip())
+            
+        database.save_setting("ip_lock_enabled", "true" if data.ip_lock_enabled else "false")
+        database.save_setting("registration_credits", str(data.registration_credits))
+        
         return {"success": True, "message": "Settings updated successfully"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
@@ -537,10 +575,10 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                         f.write(img_resp.content)
                     local_url = f"/static/generations/{filename}"
                     database.update_generation(gen_id, "completed", local_url)
-                    return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
+                    return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost, "gen_id": gen_id}
                 else:
                     database.update_generation(gen_id, "completed", img_url)
-                    return {"success": True, "image_url": img_url, "credits_left": current_credits - credit_cost}
+                    return {"success": True, "image_url": img_url, "credits_left": current_credits - credit_cost, "gen_id": gen_id}
 
         if is_hive:
             model_cfg = HIVE_MODELS_CONFIG.get(data.model)
@@ -621,17 +659,16 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                                 f.write(img_resp.content)
                             local_url = f"/static/generations/{filename}"
                             database.update_generation(gen_id, "completed", local_url)
-                            return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
+                            return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost, "gen_id": gen_id}
                         else:
                             database.update_generation(gen_id, "completed", img_url)
-                            return {"success": True, "image_url": img_url, "credits_left": current_credits - credit_cost}
+                            return {"success": True, "image_url": img_url, "credits_left": current_credits - credit_cost, "gen_id": gen_id}
                             
                 raise Exception(f"Could not parse image data from response: {resp_json}")
                 
         elif protocol == "vertex-ai":
             from google import genai
             from google.genai import types
-            import asyncio
             
             if "ZENMUX_API_KEY" not in os.environ or not os.environ["ZENMUX_API_KEY"]:
                 os.environ["ZENMUX_API_KEY"] = api_key
@@ -682,7 +719,7 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                             
                         local_url = f"/static/generations/{filename}"
                         database.update_generation(gen_id, "completed", local_url)
-                        return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
+                        return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost, "gen_id": gen_id}
                         
             raise Exception("No image was returned in the response.")
             
@@ -727,10 +764,10 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                                 f.write(img_resp.content)
                             local_url = f"/static/generations/{filename}"
                             database.update_generation(gen_id, "completed", local_url)
-                            return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
+                            return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost, "gen_id": gen_id}
                         else:
                             database.update_generation(gen_id, "completed", img_url)
-                            return {"success": True, "image_url": img_url, "credits_left": current_credits - credit_cost}
+                            return {"success": True, "image_url": img_url, "credits_left": current_credits - credit_cost, "gen_id": gen_id}
                     elif "b64_json" in item:
                         b64_data = item["b64_json"]
                         image_bytes = base64.b64decode(b64_data)
@@ -740,7 +777,7 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                             f.write(image_bytes)
                         local_url = f"/static/generations/{filename}"
                         database.update_generation(gen_id, "completed", local_url)
-                        return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
+                        return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost, "gen_id": gen_id}
                         
                 raise Exception(f"Could not parse image data from response: {resp_json}")
                 
@@ -753,3 +790,31 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
         error_msg = str(e)
         database.update_generation(gen_id, "failed", error_message=error_msg[:255])
         return JSONResponse(status_code=500, content={"success": False, "message": f"Generation failed: {error_msg}"})
+
+class DeleteGenerationRequest(BaseModel):
+    gen_id: int
+
+@app.post("/api/generations/delete")
+async def delete_generation(data: DeleteGenerationRequest, user: dict = Depends(get_current_user_or_redirect)):
+    try:
+        conn = database.get_db_connection()
+        gen = conn.execute("SELECT user_id, image_url FROM generations WHERE id = ?", (data.gen_id,)).fetchone()
+        conn.close()
+        if not gen:
+            return JSONResponse(status_code=404, content={"success": False, "message": "Generation not found."})
+        if gen["user_id"] != user["id"] and not user["is_admin"]:
+            return JSONResponse(status_code=403, content={"success": False, "message": "Permission denied."})
+        
+        image_url = gen["image_url"]
+        if image_url and image_url.startswith("/static/generations/"):
+            local_path = image_url.lstrip("/")
+            if os.path.exists(local_path):
+                try:
+                    os.remove(local_path)
+                except Exception:
+                    pass
+        database.delete_generation(data.gen_id)
+        return {"success": True, "message": "Generation deleted successfully."}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "message": f"Failed to delete: {str(e)}"})
+

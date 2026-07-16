@@ -86,6 +86,96 @@ function initDashboard() {
     let upscalerResolution = '2k';
     let upscalerFormat = 'jpeg';
 
+    // Progress Bar Logic
+    let progressInterval = null;
+    let progressVal = 0;
+
+    function startProgress(isUpscalerModel) {
+        progressVal = 0;
+        const progressContainer = document.getElementById('showcase-progress-container');
+        const progressBar = document.getElementById('showcase-progress-bar');
+        const progressStatus = document.getElementById('showcase-progress-status');
+        const progressPercent = document.getElementById('showcase-progress-percent');
+        
+        if (!progressContainer || !progressBar || !progressStatus || !progressPercent) return;
+        
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressPercent.textContent = '0%';
+        progressBar.style.background = 'linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)';
+        progressStatus.textContent = isUpscalerModel ? 'Uploading image...' : 'Contacting AI gateway...';
+        
+        const totalSeconds = isUpscalerModel ? 65 : 20;
+        const intervalMs = 250;
+        const increment = (100 / (totalSeconds * 1000 / intervalMs)) * 0.95; // increment slowly up to 95%
+        
+        if (progressInterval) clearInterval(progressInterval);
+        
+        progressInterval = setInterval(() => {
+            if (progressVal < 95) {
+                progressVal += increment;
+                const displayVal = Math.min(Math.round(progressVal), 95);
+                progressBar.style.width = `${displayVal}%`;
+                progressPercent.textContent = `${displayVal}%`;
+                
+                // Update status text based on percentage
+                if (isUpscalerModel) {
+                    if (displayVal < 15) progressStatus.textContent = 'Uploading media...';
+                    else if (displayVal < 30) progressStatus.textContent = 'Analyzing source image...';
+                    else if (displayVal < 70) progressStatus.textContent = 'Upscaling pixels (2K/4K/8K)...';
+                    else if (displayVal < 88) progressStatus.textContent = 'Enhancing texture details...';
+                    else progressStatus.textContent = 'Finalizing upscaled file...';
+                } else {
+                    if (displayVal < 15) progressStatus.textContent = 'Contacting AI gateway...';
+                    else if (displayVal < 40) progressStatus.textContent = 'Generating layout structure...';
+                    else if (displayVal < 70) progressStatus.textContent = 'Injecting textures & colors...';
+                    else if (displayVal < 90) progressStatus.textContent = 'Adding fine details...';
+                    else progressStatus.textContent = 'Finalizing rendering...';
+                }
+            }
+        }, intervalMs);
+    }
+
+    function completeProgress() {
+        if (progressInterval) clearInterval(progressInterval);
+        const progressContainer = document.getElementById('showcase-progress-container');
+        const progressBar = document.getElementById('showcase-progress-bar');
+        const progressPercent = document.getElementById('showcase-progress-percent');
+        const progressStatus = document.getElementById('showcase-progress-status');
+        
+        if (progressBar && progressPercent && progressStatus) {
+            progressBar.style.width = '100%';
+            progressPercent.textContent = '100%';
+            progressStatus.textContent = 'Download ready!';
+        }
+        
+        setTimeout(() => {
+            if (progressContainer) progressContainer.style.display = 'none';
+        }, 1200);
+    }
+
+    function failProgress(errorMsg) {
+        if (progressInterval) clearInterval(progressInterval);
+        const progressContainer = document.getElementById('showcase-progress-container');
+        const progressBar = document.getElementById('showcase-progress-bar');
+        const progressPercent = document.getElementById('showcase-progress-percent');
+        const progressStatus = document.getElementById('showcase-progress-status');
+        
+        if (progressBar && progressPercent && progressStatus) {
+            progressBar.style.background = '#EF4444'; // Red for failure
+            progressBar.style.width = '100%';
+            progressPercent.textContent = 'Error';
+            progressStatus.textContent = errorMsg || 'Generation failed';
+        }
+        
+        setTimeout(() => {
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+                progressBar.style.background = 'linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)';
+            }
+        }, 4000);
+    }
+
     function applyModelMode() {
         if (isUpscaler(selectedModel)) {
             if (promptSection) promptSection.style.display = 'none';
@@ -165,6 +255,10 @@ function initDashboard() {
                 const status = card.dataset.status;
                 if (status === 'failed') {
                     showToast(`Generation failed: ${card.dataset.error || 'Unknown error'}`, 'error');
+                    return;
+                }
+                if (status === 'pending') {
+                    showToast('This generation is still processing. Please wait...', 'info');
                     return;
                 }
                 previewImage({
@@ -265,15 +359,17 @@ function initDashboard() {
 
         // 1. Prepare UI state: loading
         btnGenerate.disabled = true;
-        btnGenerate.textContent = 'Generating...';
+        btnGenerate.textContent = isUpscaler(selectedModel) ? 'Upscaling...' : 'Generating...';
         
         showcaseImage.style.display = 'none';
         showcaseMeta.style.display = 'none';
         showcasePlaceholder.style.display = 'none';
         
         showcaseSpinner.style.display = 'block';
-        showcaseLoadingText.style.display = 'block';
+        showcaseLoadingText.style.display = 'none';
         document.getElementById('generation-showcase').classList.remove('has-image');
+        
+        startProgress(isUpscaler(selectedModel));
 
         try {
             const response = await fetch('/api/generate', {
@@ -309,6 +405,8 @@ function initDashboard() {
 
             // 2. Success state
             showToast('Image generated successfully!');
+            completeProgress();
+            showcaseSpinner.style.display = 'none';
             
             // Render to Showcase
             previewImage({
@@ -340,7 +438,7 @@ function initDashboard() {
                     galleryEmpty.remove();
                 }
 
-                const cardId = 'gen_' + Date.now();
+                const cardId = data.gen_id || Date.now();
                 const newCard = document.createElement('div');
                 newCard.className = 'gallery-card';
                 newCard.dataset.id = cardId;
@@ -353,6 +451,10 @@ function initDashboard() {
                 newCard.dataset.error = '';
                 
                 newCard.innerHTML = `
+                    <!-- Delete Button -->
+                    <button class="btn-delete-gen" data-id="${cardId}" title="Delete creation" style="position: absolute; top: 0.6rem; right: 0.6rem; z-index: 5; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #FFF; transition: all 0.2s ease; backdrop-filter: blur(4px);">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="width: 0.95rem; height: 0.95rem; stroke: currentColor; fill: none; stroke-width: 2;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
                     <div class="gallery-img-wrapper">
                         <img src="${data.image_url}" class="gallery-img" alt="Gallery image">
                     </div>
@@ -414,10 +516,10 @@ attachGalleryCardEvents();
 
         } catch (error) {
             showToast(error.message, 'error');
+            failProgress(error.message);
             
             // Revert UI to placeholder
             showcaseSpinner.style.display = 'none';
-            showcaseLoadingText.style.display = 'none';
             showcasePlaceholder.style.display = 'block';
             
             // Reload page if credentials updated or to sync credits
@@ -453,6 +555,60 @@ attachGalleryCardEvents();
             buyCreditsModal.style.display = 'none';
         }
     });
+
+    // Event delegation for delete buttons in the gallery grid
+    if (galleryGrid) {
+        galleryGrid.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.btn-delete-gen');
+            if (!btn) return;
+            
+            e.stopPropagation(); // Prevent triggering previewImage click
+            
+            const genId = btn.dataset.id;
+            if (!genId || genId === 'undefined') {
+                showToast('Cannot delete this creation (missing ID)', 'error');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to delete this creation?')) {
+                try {
+                    const res = await fetch('/api/generations/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ gen_id: parseInt(genId) })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        showToast(data.message);
+                        const card = btn.closest('.gallery-card');
+                        if (card) {
+                            card.style.opacity = '0';
+                            card.style.transform = 'scale(0.8)';
+                            card.style.transition = 'all 0.3s ease';
+                            setTimeout(() => {
+                                card.remove();
+                                const count = galleryGrid.querySelectorAll('.gallery-card').length;
+                                if (galleryCountLabel) {
+                                    galleryCountLabel.textContent = `${count} creation${count !== 1 ? 's' : ''}`;
+                                }
+                                if (count === 0) {
+                                    const emptyDiv = document.createElement('div');
+                                    emptyDiv.id = 'gallery-empty';
+                                    emptyDiv.style = 'text-align: center; padding: 4rem 2rem; background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border-color); color: var(--text-secondary);';
+                                    emptyDiv.innerHTML = '<p>No previous generations found. Start generating now!</p>';
+                                    galleryGrid.parentNode.insertBefore(emptyDiv, galleryGrid.nextSibling);
+                                }
+                            }, 300);
+                        }
+                    } else {
+                        showToast(data.message || 'Failed to delete creation', 'error');
+                    }
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+            }
+        });
+    }
 }
 
 // --- Admin Panel Logic ---
@@ -624,6 +780,12 @@ function initAdmin() {
             const baseUrl = document.getElementById('settings-base-url').value.trim();
             const protocol = document.getElementById('settings-protocol').value;
             const wavespeedApiKey = document.getElementById('settings-wavespeed-api-key').value.trim();
+            
+            const ipLockInput = document.getElementById('settings-ip-lock');
+            const regCreditsInput = document.getElementById('settings-reg-credits');
+            
+            const ipLockEnabled = ipLockInput ? ipLockInput.checked : false;
+            const registrationCredits = regCreditsInput ? parseInt(regCreditsInput.value) || 1 : 1;
 
             try {
                 const res = await fetch('/api/admin/settings', {
@@ -634,7 +796,9 @@ function initAdmin() {
                         base_url: baseUrl,
                         protocol: protocol,
                         hive_api_key: hiveApiKey,
-                        wavespeed_api_key: wavespeedApiKey
+                        wavespeed_api_key: wavespeedApiKey,
+                        ip_lock_enabled: ipLockEnabled,
+                        registration_credits: registrationCredits
                     })
                 });
 

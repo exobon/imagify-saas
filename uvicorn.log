@@ -1,0 +1,53 @@
+nohup: ignoring input
+INFO:     Started server process [2649599]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     47.15.119.179:0 - "GET /dashboard HTTP/1.0" 200 OK
+INFO:     47.15.119.179:0 - "GET /static/generations/gen_1_4a5c7bc7_1784160169.png HTTP/1.0" 304 Not Modified
+INFO:     47.15.119.179:0 - "GET /static/css/styles.css HTTP/1.0" 200 OK
+INFO:     47.15.119.179:0 - "GET /static/js/app.js HTTP/1.0" 304 Not Modified
+INFO:     47.15.119.179:0 - "GET /favicon.ico HTTP/1.0" 404 Not Found
+Traceback (most recent call last):
+  File "/home/ubuntu/imagify-saas/main.py", line 507, in generate_image
+    await asyncio.sleep(2)
+          ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+INFO:     47.15.119.179:0 - "POST /api/generate HTTP/1.0" 500 Internal Server Error
+INFO:     47.15.119.179:0 - "GET /dashboard HTTP/1.0" 200 OK
+INFO:     47.15.119.179:0 - "GET /admin HTTP/1.0" 200 OK
+INFO:     47.15.119.179:0 - "GET /favicon.ico HTTP/1.0" 404 Not Found
+INFO:     47.15.118.120:0 - "GET /admin HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/css/styles.css HTTP/1.0" 304 Not Modified
+INFO:     47.15.118.120:0 - "GET /static/js/app.js HTTP/1.0" 304 Not Modified
+INFO:     47.15.118.120:0 - "GET /favicon.ico HTTP/1.0" 404 Not Found
+INFO:     47.15.118.120:0 - "GET /logout HTTP/1.0" 307 Temporary Redirect
+INFO:     47.15.118.120:0 - "GET / HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET / HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/css/styles.css HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/images/logo.webp HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/images/enhancer-before.jpg HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/images/enhancer-after.jpg HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /login HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "POST /login HTTP/1.0" 303 See Other
+INFO:     47.15.118.120:0 - "GET /dashboard HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_4a5c7bc7_1784160169.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_e491ef7f_1783606424.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_b6d836b1_1783606335.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_46db05fd_1783606293.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/js/app.js HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_6c013c46_1783524367.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_4711540b_1783524343.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_8e117ee1_1783523864.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_b828f6ea_1783471272.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_e7c71698_1783471115.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_e0e616ee_1783470091.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_04defc5d_1783464892.png HTTP/1.0" 200 OK
+INFO:     47.15.118.120:0 - "GET /static/generations/gen_1_0a2b4f39_1783441617.png HTTP/1.0" 200 OK
+Traceback (most recent call last):
+  File "/home/ubuntu/imagify-saas/main.py", line 507, in generate_image
+    await asyncio.sleep(2)
+          ^^^^^^^
+UnboundLocalError: cannot access local variable 'asyncio' where it is not associated with a value
+INFO:     47.15.118.120:0 - "POST /api/generate HTTP/1.0" 500 Internal Server Error
+INFO:     47.15.118.120:0 - "GET /dashboard HTTP/1.0" 200 OK
