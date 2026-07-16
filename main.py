@@ -402,8 +402,11 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
         base_url = database.get_setting("base_url") or "https://zenmux.ai/api/vertex-ai"
         protocol = database.get_setting("protocol") or "vertex-ai"
     
-    # 3. Deduct credit (refund if fails)
-    database.update_user_credits(user["id"], current_credits - 1)
+    # 3. Deduct credit (refund if fails). Upscaler costs 2 credits, others 1.
+    credit_cost = 2 if data.model == "wavespeed-ai/image-upscaler" else 1
+    if current_credits < credit_cost:
+        return JSONResponse(status_code=400, content={"success": False, "message": f"Insufficient credits. This action requires {credit_cost} credit(s)."})
+    database.update_user_credits(user["id"], current_credits - credit_cost)
     
     # 4. Save initial generation record
     gen_id = database.save_generation(
@@ -422,7 +425,32 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
             if not data.image:
                 raise Exception("No image provided for upscaling.")
 
-            image_input = data.image  # data URL or http(s) URL
+            # Wavespeed requires an http(s) URL for `image` (not a base64 data URL).
+            # If the frontend sent a data URL, upload it to Wavespeed media first.
+            image_input = data.image
+            if image_input.startswith("data:"):
+                try:
+                    hdr, b64 = image_input.split(",", 1)
+                    raw = base64.b64decode(b64)
+                    mime = hdr[5:hdr.index(";")] if ";" in hdr else "image/png"
+                    ext = mime.split("/")[-1] or "png"
+                except Exception as e:
+                    raise Exception(f"Invalid image data URL: {e}")
+                upload_headers = {"Authorization": f"Bearer {wavespeed_api_key}"}
+                files = {"file": (f"upload.{ext}", raw, mime)}
+                async with httpx.AsyncClient(timeout=120.0) as up_client:
+                    up = await up_client.post(
+                        "https://api.wavespeed.ai/api/v3/media/upload/binary",
+                        headers=upload_headers,
+                        files=files
+                    )
+                    if up.status_code != 200:
+                        raise Exception(f"Wavespeed media upload failed ({up.status_code}): {up.text}")
+                    up_json = up.json()
+                    up_data = up_json.get("data", up_json)
+                    image_input = up_data.get("download_url") or up_data.get("url")
+                    if not image_input:
+                        raise Exception(f"Wavespeed media upload did not return a URL: {up_json}")
 
             target_resolution = (data.target_resolution or "4k").lower()
             if target_resolution not in ("2k", "4k", "8k"):
@@ -494,10 +522,10 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                         f.write(img_resp.content)
                     local_url = f"/static/generations/{filename}"
                     database.update_generation(gen_id, "completed", local_url)
-                    return {"success": True, "image_url": local_url, "credits_left": current_credits - 1}
+                    return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
                 else:
                     database.update_generation(gen_id, "completed", img_url)
-                    return {"success": True, "image_url": img_url, "credits_left": current_credits - 1}
+                    return {"success": True, "image_url": img_url, "credits_left": current_credits - credit_cost}
 
         if is_hive:
             model_cfg = HIVE_MODELS_CONFIG.get(data.model)
@@ -578,10 +606,10 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                                 f.write(img_resp.content)
                             local_url = f"/static/generations/{filename}"
                             database.update_generation(gen_id, "completed", local_url)
-                            return {"success": True, "image_url": local_url, "credits_left": current_credits - 1}
+                            return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
                         else:
                             database.update_generation(gen_id, "completed", img_url)
-                            return {"success": True, "image_url": img_url, "credits_left": current_credits - 1}
+                            return {"success": True, "image_url": img_url, "credits_left": current_credits - credit_cost}
                             
                 raise Exception(f"Could not parse image data from response: {resp_json}")
                 
@@ -639,7 +667,7 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                             
                         local_url = f"/static/generations/{filename}"
                         database.update_generation(gen_id, "completed", local_url)
-                        return {"success": True, "image_url": local_url, "credits_left": current_credits - 1}
+                        return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
                         
             raise Exception("No image was returned in the response.")
             
@@ -684,10 +712,10 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                                 f.write(img_resp.content)
                             local_url = f"/static/generations/{filename}"
                             database.update_generation(gen_id, "completed", local_url)
-                            return {"success": True, "image_url": local_url, "credits_left": current_credits - 1}
+                            return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
                         else:
                             database.update_generation(gen_id, "completed", img_url)
-                            return {"success": True, "image_url": img_url, "credits_left": current_credits - 1}
+                            return {"success": True, "image_url": img_url, "credits_left": current_credits - credit_cost}
                     elif "b64_json" in item:
                         b64_data = item["b64_json"]
                         image_bytes = base64.b64decode(b64_data)
@@ -697,7 +725,7 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                             f.write(image_bytes)
                         local_url = f"/static/generations/{filename}"
                         database.update_generation(gen_id, "completed", local_url)
-                        return {"success": True, "image_url": local_url, "credits_left": current_credits - 1}
+                        return {"success": True, "image_url": local_url, "credits_left": current_credits - credit_cost}
                         
                 raise Exception(f"Could not parse image data from response: {resp_json}")
                 
