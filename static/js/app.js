@@ -35,6 +35,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+    // Waitlist form (landing page) - show success only on submit
+    const wlForm = document.getElementById('waitlist-form');
+    if (wlForm) {
+        wlForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const success = document.getElementById('waitlist-success');
+            if (success) success.style.display = 'flex';
+            wlForm.reset();
+            wlForm.style.display = 'none';
+        });
+    }
+
 // --- Dashboard Logic ---
 function initDashboard() {
     const promptInput = document.getElementById('prompt-input');
