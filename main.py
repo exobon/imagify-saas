@@ -415,6 +415,90 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
     
     # 5. Call API
     try:
+        # Highest priority: Wavespeed image upscaler (image-to-image, not text-to-image)
+        if data.model == "wavespeed-ai/image-upscaler":
+            if not wavespeed_api_key:
+                raise Exception("Wavespeed AI API Key is not configured. Please contact the administrator to set the API Key.")
+            if not data.image:
+                raise Exception("No image provided for upscaling.")
+
+            image_input = data.image  # data URL or http(s) URL
+
+            target_resolution = (data.target_resolution or "4k").lower()
+            if target_resolution not in ("2k", "4k", "8k"):
+                target_resolution = "4k"
+            output_format = (data.output_format or "jpeg").lower()
+            if output_format not in ("jpeg", "png", "webp"):
+                output_format = "jpeg"
+
+            ws_headers = {
+                "Authorization": f"Bearer {wavespeed_api_key}",
+                "Content-Type": "application/json"
+            }
+            ws_payload = {
+                "image": image_input,
+                "target_resolution": target_resolution,
+                "output_format": output_format,
+                "enable_base64_output": False,
+                "enable_sync_mode": False
+            }
+
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                submit = await client.post(
+                    "https://api.wavespeed.ai/api/v3/wavespeed-ai/image-upscaler",
+                    headers=ws_headers,
+                    json=ws_payload
+                )
+                if submit.status_code not in (200, 201):
+                    raise Exception(f"Wavespeed API returned status {submit.status_code}: {submit.text}")
+                submit_json = submit.json()
+                req_data = submit_json.get("data", submit_json)
+                request_id = (req_data.get("request_id") or req_data.get("id")
+                              or submit_json.get("request_id") or submit_json.get("id"))
+                if not request_id:
+                    raise Exception(f"Wavespeed API did not return a request id: {submit_json}")
+
+                res_url = f"https://api.wavespeed.ai/api/v3/predictions/{request_id}/result"
+                img_url = None
+                for _ in range(60):
+                    await asyncio.sleep(2)
+                    poll = await client.get(res_url, headers=ws_headers)
+                    if poll.status_code != 200:
+                        continue
+                    pj = poll.json()
+                    pd = pj.get("data", pj)
+                    status = (pd.get("status") or pj.get("status") or "").lower()
+                    if status in ("failed", "cancelled", "canceled", "error", "timeout"):
+                        raise Exception(f"Wavespeed upscaler {status}: {pj}")
+                    if status == "completed":
+                        outputs = pd.get("outputs") or pj.get("outputs")
+                        if isinstance(outputs, list) and outputs:
+                            first = outputs[0]
+                            if isinstance(first, str):
+                                img_url = first
+                            elif isinstance(first, dict):
+                                img_url = first.get("url") or first.get("image") or first.get("output")
+                        if not img_url:
+                            img_url = pd.get("url") or pj.get("url")
+                        break
+
+                if not img_url:
+                    raise Exception("Wavespeed upscaler did not return an output image.")
+
+                img_resp = await client.get(img_url)
+                if img_resp.status_code == 200:
+                    ext = output_format if output_format != "jpeg" else "jpg"
+                    filename = f"gen_{user['id']}_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}.{ext}"
+                    filepath = os.path.join("static", "generations", filename)
+                    with open(filepath, "wb") as f:
+                        f.write(img_resp.content)
+                    local_url = f"/static/generations/{filename}"
+                    database.update_generation(gen_id, "completed", local_url)
+                    return {"success": True, "image_url": local_url, "credits_left": current_credits - 1}
+                else:
+                    database.update_generation(gen_id, "completed", img_url)
+                    return {"success": True, "image_url": img_url, "credits_left": current_credits - 1}
+
         if is_hive:
             model_cfg = HIVE_MODELS_CONFIG.get(data.model)
             if not model_cfg:
@@ -559,96 +643,6 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                         
             raise Exception("No image was returned in the response.")
             
-        elif data.model == "wavespeed-ai/image-upscaler":
-            if not wavespeed_api_key:
-                raise Exception("Wavespeed AI API Key is not configured. Please contact the administrator to set the API Key.")
-            if not data.image:
-                raise Exception("No image provided for upscaling.")
-
-            # Normalise image input to a URL or base64 string expected by Wavespeed
-            image_input = data.image
-            if image_input.startswith("data:"):
-                # keep as base64 data URL (Wavespeed accepts data URLs)
-                pass
-
-            target_resolution = (data.target_resolution or "4k").lower()
-            if target_resolution not in ("2k", "4k", "8k"):
-                target_resolution = "4k"
-            output_format = (data.output_format or "jpeg").lower()
-            if output_format not in ("jpeg", "png", "webp"):
-                output_format = "jpeg"
-
-            ws_headers = {
-                "Authorization": f"Bearer {wavespeed_api_key}",
-                "Content-Type": "application/json"
-            }
-            ws_payload = {
-                "image": image_input,
-                "target_resolution": target_resolution,
-                "output_format": output_format,
-                "enable_base64_output": False,
-                "enable_sync_mode": False
-            }
-
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                submit = await client.post(
-                    "https://api.wavespeed.ai/api/v3/wavespeed-ai/image-upscaler",
-                    headers=ws_headers,
-                    json=ws_payload
-                )
-                if submit.status_code not in (200, 201):
-                    raise Exception(f"Wavespeed API returned status {submit.status_code}: {submit.text}")
-                submit_json = submit.json()
-                # Request id may live under data.request_id / data.id / request_id
-                req_data = submit_json.get("data", submit_json)
-                request_id = (req_data.get("request_id") or req_data.get("id")
-                              or submit_json.get("request_id") or submit_json.get("id"))
-                if not request_id:
-                    raise Exception(f"Wavespeed API did not return a request id: {submit_json}")
-
-                # Poll for completion
-                result_url = f"https://api.wavespeed.ai/api/v3/predictions/{request_id}/result"
-                img_url = None
-                for _ in range(60):  # up to ~120s
-                    await asyncio.sleep(2)
-                    poll = await client.get(result_url, headers=ws_headers)
-                    if poll.status_code != 200:
-                        continue
-                    pj = poll.json()
-                    pdata = pj.get("data", pj)
-                    status = (pdata.get("status") or pj.get("status") or "").lower()
-                    if status in ("failed", "cancelled", "canceled", "error", "timeout"):
-                        raise Exception(f"Wavespeed upscaler {status}: {pj}")
-                    if status == "completed":
-                        # Outputs can be a list of URLs or a list of objects
-                        outputs = pdata.get("outputs") or pj.get("outputs")
-                        if isinstance(outputs, list) and outputs:
-                            first = outputs[0]
-                            if isinstance(first, str):
-                                img_url = first
-                            elif isinstance(first, dict):
-                                img_url = first.get("url") or first.get("image") or first.get("output")
-                        if not img_url:
-                            img_url = pdata.get("url") or pj.get("url")
-                        break
-
-                if not img_url:
-                    raise Exception("Wavespeed upscaler did not return an output image.")
-
-                # Download to keep a local copy
-                img_resp = await client.get(img_url)
-                if img_resp.status_code == 200:
-                    ext = output_format if output_format != "jpeg" else "jpg"
-                    filename = f"gen_{user['id']}_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}.{ext}"
-                    filepath = os.path.join("static", "generations", filename)
-                    with open(filepath, "wb") as f:
-                        f.write(img_resp.content)
-                    local_url = f"/static/generations/{filename}"
-                    database.update_generation(gen_id, "completed", local_url)
-                    return {"success": True, "image_url": local_url, "credits_left": current_credits - 1}
-                else:
-                    database.update_generation(gen_id, "completed", img_url)
-                    return {"success": True, "image_url": img_url, "credits_left": current_credits - 1}
 
         else:
             # OpenAI-compatible protocol format
