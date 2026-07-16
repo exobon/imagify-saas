@@ -487,11 +487,14 @@ attachGalleryCardEvents();
              updateThemeIcon();
          });
          
-         // Initialize theme from localStorage
+         // Initialize theme from localStorage (default to dark mode)
          const savedTheme = localStorage.getItem('theme');
-         if (savedTheme === 'dark') {
+         if (savedTheme === 'light') {
+             document.body.classList.remove('dark-mode');
+         } else {
              document.body.classList.add('dark-mode');
          }
+         updateThemeIcon();
          
          function updateThemeIcon() {
              const isDark = document.body.classList.contains('dark-mode');

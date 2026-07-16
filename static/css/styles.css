@@ -1,20 +1,20 @@
 /* Premium SaaS Style System */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
     /* Fonts */
-    --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --font-heading: 'Outfit', 'Inter', system-ui, sans-serif;
+    --font-body: 'Instrument Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
 
-    /* Claude AI Theme (Warm White & Orange) */
-    --bg-main: #F9F9F6;          /* warm white background */
-    --bg-subtle: #F3F1EA;        /* warm subtle ivory */
+    /* Claude / Mona AI Theme (Warm White & Orange) */
+    --bg-main: #FAF9F5;          /* warm white background */
+    --bg-subtle: #F3F1E9;        /* warm subtle ivory */
     --bg-card: #FFFFFF;          /* card white background */
     --bg-glass: rgba(255, 255, 255, 0.8);
     --bg-elevated: #FFFFFF;
 
-    --border-color: #E2DFD5;     /* Claude-like soft border */
-    --border-strong: #CFCAB9;    /* Claude-like strong border */
+    --border-color: rgba(25, 25, 25, 0.06);     /* soft border */
+    --border-strong: rgba(25, 25, 25, 0.12);    /* strong border */
     --border-glow: rgba(217, 119, 6, 0.28); /* warm orange glow */
 
     --primary: #D97706;          /* Warm Orange accent */
@@ -47,27 +47,27 @@
 
 /* Dark theme override (toggled via body.dark-mode) */
 body.dark-mode {
-    --bg-main: #141413;          /* Warm charcoal background */
-    --bg-subtle: #1C1C1A;        /* warm subtle black */
-    --bg-card: #222220;          /* card background */
-    --bg-glass: rgba(34, 34, 32, 0.7);
-    --bg-elevated: #2A2A27;
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.14);
+    --bg-main: #060605;          /* Warm black background */
+    --bg-subtle: #0C0C0B;        /* warm subtle charcoal */
+    --bg-card: rgba(14, 14, 12, 0.6);          /* card background */
+    --bg-glass: rgba(14, 14, 12, 0.7);
+    --bg-elevated: #151513;
+    --border-color: rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.12);
     --text-primary: #ECEAE2;     /* Warm white text */
     --text-secondary: #B4B1A7;   /* Warm gray text */
     --text-muted: #7E7B73;       /* Muted warm gray text */
-    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.5);
-    --shadow-xl: 0 24px 50px rgba(0, 0, 0, 0.6);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.55);
+    --shadow-xl: 0 24px 50px rgba(0, 0, 0, 0.65);
 }
 
 /* Base body (light by default; dark via body.dark-mode override above) */
 body {
     background-color: var(--bg-main);
     background-image: 
-        radial-gradient(at 0% 0%, rgba(217, 119, 6, 0.06) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.05) 0px, transparent 50%);
+        radial-gradient(1200px 600px at 50% -200px, rgba(217, 119, 6, 0.12), transparent 70%),
+        radial-gradient(at 100% 100%, rgba(220, 90, 50, 0.04) 0px, transparent 50%);
     color: var(--text-primary);
     font-family: var(--font-body);
     line-height: 1.6;
@@ -2013,5 +2013,17 @@ header .navbar { max-width: 1200px; margin: 0 auto; }
     color: #FFFFFF !important;
     box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
+
+/* Intermediate Laptop/Desktop Responsive Styling */
+@media (min-width: 969px) and (max-width: 1200px) {
+    .dashboard-layout {
+        grid-template-columns: 320px 1fr;
+        gap: 1.5rem;
+    }
+    .generator-card {
+        padding: 1.25rem;
+    }
+}
+
 
 
