@@ -47,9 +47,43 @@
                     </div>
                 </div>
 
-                <h3 style="margin-bottom: 1rem; font-size: 1.2rem; color: var(--text-secondary);">1. Write Prompt</h3>
-                <div class="form-group" style="margin-bottom: 1.5rem;">
-                    <textarea id="prompt-input" class="form-input" rows="4" style="resize: none;" placeholder="Describe what you want to create in vivid detail..."></textarea>
+                <div id="prompt-section">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.2rem; color: var(--text-secondary);">1. Write Prompt</h3>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <textarea id="prompt-input" class="form-input" rows="4" style="resize: none;" placeholder="Describe what you want to create in vivid detail..."></textarea>
+                    </div>
+                </div>
+
+                <div id="upscaler-section" style="display: none; margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.2rem; color: var(--text-secondary);">1. Upload Image</h3>
+                    <label for="upscaler-file" id="upscaler-dropzone" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; padding: 1.75rem 1rem; border: 2px dashed var(--border-color); border-radius: 16px; background: rgba(255,255,255,0.02); cursor: pointer; text-align: center; transition: border-color 0.2s ease, background 0.2s ease;">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="width: 2rem; height: 2rem; stroke-width: 1.5; color: var(--primary);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        <span id="upscaler-file-label" style="font-size: 0.95rem; color: var(--text-secondary);">Drag &amp; drop or click to upload an image</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">JPG, PNG or WEBP &mdash; recommended minimum 512px</span>
+                    </label>
+                    <input type="file" id="upscaler-file" accept="image/*" style="display: none;">
+                    <div id="upscaler-preview-wrap" style="display: none; margin-top: 1rem; text-align: center;">
+                        <img id="upscaler-preview" src="" alt="Selected image preview" style="max-width: 100%; max-height: 220px; border-radius: 12px; border: 1px solid var(--border-color);">
+                        <button type="button" id="upscaler-remove" class="btn btn-secondary btn-sm" style="margin-top: 0.75rem;">Remove image</button>
+                    </div>
+
+                    <div style="margin-top: 1.25rem;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">Target Resolution</label>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;" id="upscaler-resolution-group">
+                            <button type="button" class="upscale-res-btn active" data-value="2k" style="flex: 1; min-width: 80px; padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(99,102,241,0.15); color: var(--primary); font-weight: 600; cursor: pointer;">2K</button>
+                            <button type="button" class="upscale-res-btn" data-value="4k" style="flex: 1; min-width: 80px; padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); color: var(--text-secondary); font-weight: 600; cursor: pointer;">4K</button>
+                            <button type="button" class="upscale-res-btn" data-value="8k" style="flex: 1; min-width: 80px; padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); color: var(--text-secondary); font-weight: 600; cursor: pointer;">8K</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.25rem;">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">Output Format</label>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;" id="upscaler-format-group">
+                            <button type="button" class="upscale-fmt-btn active" data-value="jpeg" style="flex: 1; min-width: 80px; padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(99,102,241,0.15); color: var(--primary); font-weight: 600; cursor: pointer;">JPEG</button>
+                            <button type="button" class="upscale-fmt-btn" data-value="png" style="flex: 1; min-width: 80px; padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); color: var(--text-secondary); font-weight: 600; cursor: pointer;">PNG</button>
+                            <button type="button" class="upscale-fmt-btn" data-value="webp" style="flex: 1; min-width: 80px; padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); color: var(--text-secondary); font-weight: 600; cursor: pointer;">WEBP</button>
+                        </div>
+                    </div>
                 </div>
 
                 <h3 style="margin-bottom: 1rem; font-size: 1.2rem; color: var(--text-secondary);">2. Select AI Model</h3>

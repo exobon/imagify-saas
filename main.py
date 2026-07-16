@@ -181,6 +181,7 @@ async def admin_page(request: Request, admin_user: dict = Depends(get_admin_user
     base_url = database.get_setting("base_url") or "https://zenmux.ai/api/vertex-ai"
     protocol = database.get_setting("protocol") or "vertex-ai"
     hive_api_key = database.get_setting("hive_api_key")
+    wavespeed_api_key = database.get_setting("wavespeed_api_key")
     
     return templates.TemplateResponse(
         request=request, 
@@ -192,7 +193,8 @@ async def admin_page(request: Request, admin_user: dict = Depends(get_admin_user
             "api_key": api_key,
             "base_url": base_url,
             "protocol": protocol,
-            "hive_api_key": hive_api_key
+            "hive_api_key": hive_api_key,
+            "wavespeed_api_key": wavespeed_api_key
         }
     )
 
@@ -278,6 +280,7 @@ class SettingsUpdateRequest(BaseModel):
     base_url: str
     protocol: str
     hive_api_key: str = ""
+    wavespeed_api_key: str = ""
 
 @app.post("/api/admin/settings")
 async def update_settings(data: SettingsUpdateRequest, admin_user: dict = Depends(get_admin_user_or_redirect)):
@@ -286,6 +289,7 @@ async def update_settings(data: SettingsUpdateRequest, admin_user: dict = Depend
         database.save_setting("base_url", data.base_url)
         database.save_setting("protocol", data.protocol)
         database.save_setting("hive_api_key", data.hive_api_key)
+        database.save_setting("wavespeed_api_key", data.wavespeed_api_key)
         return {"success": True, "message": "Settings updated successfully"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
@@ -346,7 +350,7 @@ HIVE_DEFAULTS = {
 }
 
 class GenerationRequest(BaseModel):
-    prompt: str
+    prompt: str | None = None
     model: str
     negative_prompt: str | None = None
     width: int | None = None
@@ -357,6 +361,11 @@ class GenerationRequest(BaseModel):
     num_inference_steps: int | None = None
     output_format: str | None = None
     output_quality: int | None = None
+    # Upscaler (wavespeed-ai/image-upscaler) inputs
+    image: str | None = None          # data URL (data:image/...;base64,....) or http(s) URL
+    target_resolution: str | None = None  # 2k | 4k | 8k
+    enable_base64_output: bool | None = None
+    enable_sync_mode: bool | None = None
 
 @app.post("/api/generate")
 async def generate_image(data: GenerationRequest, user: dict = Depends(get_current_user_or_redirect)):
@@ -387,7 +396,9 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
         api_key = os.environ.get("ZENMUX_API_KEY") or database.get_setting("zenmux_api_key")
         if not api_key:
             return JSONResponse(status_code=500, content={"success": False, "message": "API Key is not configured. Please contact the administrator to set the API Key."})
-            
+
+        wavespeed_api_key = os.environ.get("WAVESPEED_API_KEY") or database.get_setting("wavespeed_api_key")
+
         base_url = database.get_setting("base_url") or "https://zenmux.ai/api/vertex-ai"
         protocol = database.get_setting("protocol") or "vertex-ai"
     
@@ -548,6 +559,97 @@ async def generate_image(data: GenerationRequest, user: dict = Depends(get_curre
                         
             raise Exception("No image was returned in the response.")
             
+        elif data.model == "wavespeed-ai/image-upscaler":
+            if not wavespeed_api_key:
+                raise Exception("Wavespeed AI API Key is not configured. Please contact the administrator to set the API Key.")
+            if not data.image:
+                raise Exception("No image provided for upscaling.")
+
+            # Normalise image input to a URL or base64 string expected by Wavespeed
+            image_input = data.image
+            if image_input.startswith("data:"):
+                # keep as base64 data URL (Wavespeed accepts data URLs)
+                pass
+
+            target_resolution = (data.target_resolution or "4k").lower()
+            if target_resolution not in ("2k", "4k", "8k"):
+                target_resolution = "4k"
+            output_format = (data.output_format or "jpeg").lower()
+            if output_format not in ("jpeg", "png", "webp"):
+                output_format = "jpeg"
+
+            ws_headers = {
+                "Authorization": f"Bearer {wavespeed_api_key}",
+                "Content-Type": "application/json"
+            }
+            ws_payload = {
+                "image": image_input,
+                "target_resolution": target_resolution,
+                "output_format": output_format,
+                "enable_base64_output": False,
+                "enable_sync_mode": False
+            }
+
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                submit = await client.post(
+                    "https://api.wavespeed.ai/api/v3/wavespeed-ai/image-upscaler",
+                    headers=ws_headers,
+                    json=ws_payload
+                )
+                if submit.status_code not in (200, 201):
+                    raise Exception(f"Wavespeed API returned status {submit.status_code}: {submit.text}")
+                submit_json = submit.json()
+                # Request id may live under data.request_id / data.id / request_id
+                req_data = submit_json.get("data", submit_json)
+                request_id = (req_data.get("request_id") or req_data.get("id")
+                              or submit_json.get("request_id") or submit_json.get("id"))
+                if not request_id:
+                    raise Exception(f"Wavespeed API did not return a request id: {submit_json}")
+
+                # Poll for completion
+                result_url = f"https://api.wavespeed.ai/api/v3/predictions/{request_id}/result"
+                img_url = None
+                for _ in range(60):  # up to ~120s
+                    await asyncio.sleep(2)
+                    poll = await client.get(result_url, headers=ws_headers)
+                    if poll.status_code != 200:
+                        continue
+                    pj = poll.json()
+                    pdata = pj.get("data", pj)
+                    status = (pdata.get("status") or pj.get("status") or "").lower()
+                    if status in ("failed", "cancelled", "canceled", "error", "timeout"):
+                        raise Exception(f"Wavespeed upscaler {status}: {pj}")
+                    if status == "completed":
+                        # Outputs can be a list of URLs or a list of objects
+                        outputs = pdata.get("outputs") or pj.get("outputs")
+                        if isinstance(outputs, list) and outputs:
+                            first = outputs[0]
+                            if isinstance(first, str):
+                                img_url = first
+                            elif isinstance(first, dict):
+                                img_url = first.get("url") or first.get("image") or first.get("output")
+                        if not img_url:
+                            img_url = pdata.get("url") or pj.get("url")
+                        break
+
+                if not img_url:
+                    raise Exception("Wavespeed upscaler did not return an output image.")
+
+                # Download to keep a local copy
+                img_resp = await client.get(img_url)
+                if img_resp.status_code == 200:
+                    ext = output_format if output_format != "jpeg" else "jpg"
+                    filename = f"gen_{user['id']}_{uuid.uuid4().hex[:8]}_{int(datetime.now().timestamp())}.{ext}"
+                    filepath = os.path.join("static", "generations", filename)
+                    with open(filepath, "wb") as f:
+                        f.write(img_resp.content)
+                    local_url = f"/static/generations/{filename}"
+                    database.update_generation(gen_id, "completed", local_url)
+                    return {"success": True, "image_url": local_url, "credits_left": current_credits - 1}
+                else:
+                    database.update_generation(gen_id, "completed", img_url)
+                    return {"success": True, "image_url": img_url, "credits_left": current_credits - 1}
+
         else:
             # OpenAI-compatible protocol format
             # Endpoint structure: {base_url}/images/generations or if base_url doesn't end with /v1, standard zenmux endpoint
